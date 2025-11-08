@@ -191,7 +191,11 @@ function DoctorDashboard({ user, onLogout }) {
                 )}
 
                 {activeTab === 'patient-details' && selectedPatient && (
-                    <PatientDetails patient={selectedPatient} onBack={() => setActiveTab('patients')} />
+                    <PatientDetails
+                        patient={selectedPatient}
+                        userId={user.id}
+                        onBack={() => setActiveTab('patients')}
+                    />
                 )}
 
                 {activeTab === 'messages' && (
@@ -205,12 +209,31 @@ function DoctorDashboard({ user, onLogout }) {
     );
 }
 
-function PatientDetails({ patient, onBack }) {
+function PatientDetails({ patient, userId, onBack }) {
     const [observations, setObservations] = useState([]);
     const [conditions, setConditions] = useState([]);
     const [encounters, setEncounters] = useState([]);
     const [showAddObservation, setShowAddObservation] = useState(false);
     const [showAddCondition, setShowAddCondition] = useState(false);
+    const [showAddEncounter, setShowAddEncounter] = useState(false);
+
+    // Formulärdata
+    const [newObservation, setNewObservation] = useState({
+        code: '',
+        valueText: '',
+        effectiveDateTime: new Date().toISOString().slice(0, 16)
+    });
+
+    const [newCondition, setNewCondition] = useState({
+        code: '',
+        display: '',
+        assertedDate: new Date().toISOString().slice(0, 10)
+    });
+
+    const [newEncounter, setNewEncounter] = useState({
+        startTime: new Date().toISOString().slice(0, 16),
+        endTime: ''
+    });
 
     useEffect(() => {
         fetchPatientData();
@@ -232,6 +255,103 @@ function PatientDetails({ patient, onBack }) {
         }
     };
 
+    const handleAddObservation = async (e) => {
+        e.preventDefault();
+        try {
+            const response = await fetch('http://localhost:8080/api/v1/clinical/observations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    patientId: patient.id,
+                    performerId: userId,
+                    code: newObservation.code,
+                    valueText: newObservation.valueText,
+                    effectiveDateTime: newObservation.effectiveDateTime
+                })
+            });
+
+            if (response.ok) {
+                alert('Observation skapad!');
+                setShowAddObservation(false);
+                setNewObservation({
+                    code: '',
+                    valueText: '',
+                    effectiveDateTime: new Date().toISOString().slice(0, 16)
+                });
+                fetchPatientData();
+            } else {
+                alert('Fel vid skapande av observation');
+            }
+        } catch (error) {
+            console.error('Fel vid skapande av observation:', error);
+            alert('Kunde inte skapa observation');
+        }
+    };
+
+    const handleAddCondition = async (e) => {
+        e.preventDefault();
+        try {
+            const response = await fetch('http://localhost:8080/api/v1/clinical/conditions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    patientId: patient.id,
+                    practitionerId: userId,
+                    code: newCondition.code,
+                    display: newCondition.display,
+                    assertedDate: newCondition.assertedDate
+                })
+            });
+
+            if (response.ok) {
+                alert('Diagnos skapad!');
+                setShowAddCondition(false);
+                setNewCondition({
+                    code: '',
+                    display: '',
+                    assertedDate: new Date().toISOString().slice(0, 10)
+                });
+                fetchPatientData();
+            } else {
+                alert('Fel vid skapande av diagnos');
+            }
+        } catch (error) {
+            console.error('Fel vid skapande av diagnos:', error);
+            alert('Kunde inte skapa diagnos');
+        }
+    };
+
+    const handleAddEncounter = async (e) => {
+        e.preventDefault();
+        try {
+            const response = await fetch('http://localhost:8080/api/v1/clinical/encounters', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    patientId: patient.id,
+                    practitionerId: userId,
+                    startTime: newEncounter.startTime,
+                    endTime: newEncounter.endTime || null
+                })
+            });
+
+            if (response.ok) {
+                alert('Besök skapat!');
+                setShowAddEncounter(false);
+                setNewEncounter({
+                    startTime: new Date().toISOString().slice(0, 16),
+                    endTime: ''
+                });
+                fetchPatientData();
+            } else {
+                alert('Fel vid skapande av besök');
+            }
+        } catch (error) {
+            console.error('Fel vid skapande av besök:', error);
+            alert('Kunde inte skapa besök');
+        }
+    };
+
     const styles = {
         card: {
             background: 'white',
@@ -248,6 +368,15 @@ function PatientDetails({ patient, onBack }) {
             borderRadius: '4px',
             cursor: 'pointer',
             marginRight: '10px'
+        },
+        input: {
+            width: '100%',
+            padding: '10px',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            fontSize: '14px',
+            boxSizing: 'border-box',
+            marginBottom: '15px'
         }
     };
 
@@ -256,52 +385,178 @@ function PatientDetails({ patient, onBack }) {
             <button style={styles.button} onClick={onBack}>← Tillbaka</button>
 
             <div style={styles.card}>
-                <h2>Patientinformation</h2>
+                <h2>Patientinformation (Fullständig åtkomst som läkare)</h2>
                 <p><strong>Namn:</strong> {patient.firstName} {patient.lastName}</p>
                 <p><strong>Personnummer:</strong> {patient.socialSecurityNumber}</p>
                 <p><strong>Födelsedatum:</strong> {patient.dateOfBirth}</p>
             </div>
 
+            {/* OBSERVATIONER */}
             <div style={styles.card}>
                 <h3>Observationer</h3>
-                <button style={styles.button} onClick={() => setShowAddObservation(true)}>
-                    + Lägg till observation
+                <button style={styles.button} onClick={() => setShowAddObservation(!showAddObservation)}>
+                    {showAddObservation ? 'Avbryt' : '+ Lägg till observation'}
                 </button>
+
+                {showAddObservation && (
+                    <form onSubmit={handleAddObservation} style={{ marginTop: '20px', padding: '20px', background: '#f9f9f9', borderRadius: '8px' }}>
+                        <h4>Ny observation</h4>
+                        <label>
+                            Kod/Typ:
+                            <input
+                                type="text"
+                                style={styles.input}
+                                value={newObservation.code}
+                                onChange={(e) => setNewObservation({...newObservation, code: e.target.value})}
+                                placeholder="t.ex. blood-pressure, temperature, heart-rate"
+                                required
+                            />
+                        </label>
+                        <label>
+                            Värde:
+                            <input
+                                type="text"
+                                style={styles.input}
+                                value={newObservation.valueText}
+                                onChange={(e) => setNewObservation({...newObservation, valueText: e.target.value})}
+                                placeholder="t.ex. 120/80, 37.5°C, 72 bpm"
+                                required
+                            />
+                        </label>
+                        <label>
+                            Datum och tid:
+                            <input
+                                type="datetime-local"
+                                style={styles.input}
+                                value={newObservation.effectiveDateTime}
+                                onChange={(e) => setNewObservation({...newObservation, effectiveDateTime: e.target.value})}
+                                required
+                            />
+                        </label>
+                        <button type="submit" style={styles.button}>Spara observation</button>
+                    </form>
+                )}
+
                 {observations.length === 0 ? (
                     <p>Inga observationer registrerade</p>
                 ) : (
                     <ul>
                         {observations.map(obs => (
-                            <li key={obs.id}>{obs.code}: {obs.valueText}</li>
+                            <li key={obs.id} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
+                                <strong>{obs.code}:</strong> {obs.valueText}
+                                <span style={{ color: '#666', fontSize: '12px', marginLeft: '10px' }}>
+                                    ({new Date(obs.effectiveDateTime).toLocaleString()})
+                                </span>
+                            </li>
                         ))}
                     </ul>
                 )}
             </div>
 
+            {/* DIAGNOSER */}
             <div style={styles.card}>
                 <h3>Diagnoser</h3>
-                <button style={styles.button} onClick={() => setShowAddCondition(true)}>
-                    + Lägg till diagnos
+                <button style={styles.button} onClick={() => setShowAddCondition(!showAddCondition)}>
+                    {showAddCondition ? 'Avbryt' : '+ Lägg till diagnos'}
                 </button>
+
+                {showAddCondition && (
+                    <form onSubmit={handleAddCondition} style={{ marginTop: '20px', padding: '20px', background: '#f9f9f9', borderRadius: '8px' }}>
+                        <h4>Ny diagnos</h4>
+                        <label>
+                            Diagnoskod (ICD-10):
+                            <input
+                                type="text"
+                                style={styles.input}
+                                value={newCondition.code}
+                                onChange={(e) => setNewCondition({...newCondition, code: e.target.value})}
+                                placeholder="t.ex. J06.9, M54.5, E11.9"
+                                required
+                            />
+                        </label>
+                        <label>
+                            Beskrivning:
+                            <input
+                                type="text"
+                                style={styles.input}
+                                value={newCondition.display}
+                                onChange={(e) => setNewCondition({...newCondition, display: e.target.value})}
+                                placeholder="t.ex. Övre luftvägsinfektion"
+                                required
+                            />
+                        </label>
+                        <label>
+                            Datum:
+                            <input
+                                type="date"
+                                style={styles.input}
+                                value={newCondition.assertedDate}
+                                onChange={(e) => setNewCondition({...newCondition, assertedDate: e.target.value})}
+                                required
+                            />
+                        </label>
+                        <button type="submit" style={styles.button}>Spara diagnos</button>
+                    </form>
+                )}
+
                 {conditions.length === 0 ? (
                     <p>Inga diagnoser registrerade</p>
                 ) : (
                     <ul>
                         {conditions.map(cond => (
-                            <li key={cond.id}>{cond.code}: {cond.display}</li>
+                            <li key={cond.id} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
+                                <strong>{cond.code}:</strong> {cond.display}
+                                <span style={{ color: '#666', fontSize: '12px', marginLeft: '10px' }}>
+                                    ({new Date(cond.assertedDate).toLocaleDateString()})
+                                </span>
+                            </li>
                         ))}
                     </ul>
                 )}
             </div>
 
+            {/* BESÖK */}
             <div style={styles.card}>
                 <h3>Besök</h3>
+                <button style={styles.button} onClick={() => setShowAddEncounter(!showAddEncounter)}>
+                    {showAddEncounter ? 'Avbryt' : '+ Registrera besök'}
+                </button>
+
+                {showAddEncounter && (
+                    <form onSubmit={handleAddEncounter} style={{ marginTop: '20px', padding: '20px', background: '#f9f9f9', borderRadius: '8px' }}>
+                        <h4>Nytt besök</h4>
+                        <label>
+                            Starttid:
+                            <input
+                                type="datetime-local"
+                                style={styles.input}
+                                value={newEncounter.startTime}
+                                onChange={(e) => setNewEncounter({...newEncounter, startTime: e.target.value})}
+                                required
+                            />
+                        </label>
+                        <label>
+                            Sluttid (valfritt):
+                            <input
+                                type="datetime-local"
+                                style={styles.input}
+                                value={newEncounter.endTime}
+                                onChange={(e) => setNewEncounter({...newEncounter, endTime: e.target.value})}
+                            />
+                        </label>
+                        <button type="submit" style={styles.button}>Spara besök</button>
+                    </form>
+                )}
+
                 {encounters.length === 0 ? (
                     <p>Inga besök registrerade</p>
                 ) : (
                     <ul>
                         {encounters.map(enc => (
-                            <li key={enc.id}>Besök: {new Date(enc.startTime).toLocaleString()}</li>
+                            <li key={enc.id} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
+                                Besök: {new Date(enc.startTime).toLocaleString()}
+                                {enc.endTime && ` - ${new Date(enc.endTime).toLocaleString()}`}
+                            </li>
                         ))}
                     </ul>
                 )}
