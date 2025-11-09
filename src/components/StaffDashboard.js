@@ -415,7 +415,7 @@ function StaffPatientDetails({ patient, practitionerId, onBack }) {
                                 style={styles.textarea}
                                 value={newObservation.description}
                                 onChange={(e) => setNewObservation({...newObservation, description: e.target.value})}
-                                placeholder="Beskriv observationen, t.ex. 'Blodtryck: 120/80 mmHg', 'Temperatur: 37.5°C', 'Puls: 72 slag/min'"
+                                placeholder="Beskriv observationen"
                                 required
                             />
                         </label>
@@ -465,7 +465,7 @@ function StaffPatientDetails({ patient, practitionerId, onBack }) {
                                 style={styles.textarea}
                                 value={newCondition.description}
                                 onChange={(e) => setNewCondition({...newCondition, description: e.target.value})}
-                                placeholder="Beskriv diagnosen, t.ex. 'Övre luftvägsinfektion (J06.9)', 'Diabetes typ 2 (E11.9)', 'Ryggsmärta (M54.5)'"
+                                placeholder="Beskriv diagnosen"
                                 required
                             />
                         </label>
