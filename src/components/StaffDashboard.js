@@ -194,7 +194,7 @@ function StaffDashboard({ user, onLogout }) {
                 {activeTab === 'patient-details' && selectedPatient && (
                     <StaffPatientDetails
                         patient={selectedPatient}
-                        userId={user.id}
+                        practitionerId={user.foreignId}
                         onBack={() => setActiveTab('patients')}
                     />
                 )}
@@ -210,7 +210,7 @@ function StaffDashboard({ user, onLogout }) {
     );
 }
 
-function StaffPatientDetails({ patient, userId, onBack }) {
+function StaffPatientDetails({ patient, practitionerId, onBack }) {
     const [observations, setObservations] = useState([]);
     const [conditions, setConditions] = useState([]);
     const [encounters, setEncounters] = useState([]);
@@ -220,14 +220,12 @@ function StaffPatientDetails({ patient, userId, onBack }) {
 
     // Formulärdata
     const [newObservation, setNewObservation] = useState({
-        code: '',
-        valueText: '',
+        description: '',
         effectiveDateTime: new Date().toISOString().slice(0, 16)
     });
 
     const [newCondition, setNewCondition] = useState({
-        code: '',
-        display: '',
+        description: '',
         assertedDate: new Date().toISOString().slice(0, 10)
     });
 
@@ -243,9 +241,9 @@ function StaffPatientDetails({ patient, userId, onBack }) {
     const fetchPatientData = async () => {
         try {
             const [obsRes, condRes, encRes] = await Promise.all([
-                fetch(`http://localhost:8080/api/v1/clinical/patients/${patient.id}/observations`),
-                fetch(`http://localhost:8080/api/v1/clinical/patients/${patient.id}/conditions`),
-                fetch(`http://localhost:8080/api/v1/clinical/patients/${patient.id}/encounters`)
+                fetch(`http://localhost:8080/api/v1/clinical/observations/patient/${patient.id}`),
+                fetch(`http://localhost:8080/api/v1/clinical/conditions/patient/${patient.id}`),
+                fetch(`http://localhost:8080/api/v1/clinical/encounters/patient/${patient.id}`)
             ]);
 
             if (obsRes.ok) setObservations(await obsRes.json());
@@ -264,9 +262,8 @@ function StaffPatientDetails({ patient, userId, onBack }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     patientId: patient.id,
-                    performerId: userId,
-                    code: newObservation.code,
-                    valueText: newObservation.valueText,
+                    performerId: practitionerId,
+                    description: newObservation.description,
                     effectiveDateTime: newObservation.effectiveDateTime
                 })
             });
@@ -275,8 +272,7 @@ function StaffPatientDetails({ patient, userId, onBack }) {
                 alert('Observation skapad!');
                 setShowAddObservation(false);
                 setNewObservation({
-                    code: '',
-                    valueText: '',
+                    description: '',
                     effectiveDateTime: new Date().toISOString().slice(0, 16)
                 });
                 fetchPatientData();
@@ -297,9 +293,8 @@ function StaffPatientDetails({ patient, userId, onBack }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     patientId: patient.id,
-                    practitionerId: userId,
-                    code: newCondition.code,
-                    display: newCondition.display,
+                    practitionerId: practitionerId,
+                    description: newCondition.description,
                     assertedDate: newCondition.assertedDate
                 })
             });
@@ -308,8 +303,7 @@ function StaffPatientDetails({ patient, userId, onBack }) {
                 alert('Diagnos skapad!');
                 setShowAddCondition(false);
                 setNewCondition({
-                    code: '',
-                    display: '',
+                    description: '',
                     assertedDate: new Date().toISOString().slice(0, 10)
                 });
                 fetchPatientData();
@@ -330,7 +324,7 @@ function StaffPatientDetails({ patient, userId, onBack }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     patientId: patient.id,
-                    practitionerId: userId,
+                    practitionerId: practitionerId,
                     startTime: newEncounter.startTime,
                     endTime: newEncounter.endTime || null
                 })
@@ -378,6 +372,17 @@ function StaffPatientDetails({ patient, userId, onBack }) {
             fontSize: '14px',
             boxSizing: 'border-box',
             marginBottom: '15px'
+        },
+        textarea: {
+            width: '100%',
+            padding: '10px',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            fontSize: '14px',
+            boxSizing: 'border-box',
+            marginBottom: '15px',
+            minHeight: '100px',
+            fontFamily: 'inherit'
         }
     };
 
@@ -405,24 +410,12 @@ function StaffPatientDetails({ patient, userId, onBack }) {
                     <form onSubmit={handleAddObservation} style={{ marginTop: '20px', padding: '20px', background: '#f9f9f9', borderRadius: '8px' }}>
                         <h4>Ny observation</h4>
                         <label>
-                            Kod/Typ:
-                            <input
-                                type="text"
-                                style={styles.input}
-                                value={newObservation.code}
-                                onChange={(e) => setNewObservation({...newObservation, code: e.target.value})}
-                                placeholder="t.ex. blood-pressure, temperature"
-                                required
-                            />
-                        </label>
-                        <label>
-                            Värde:
-                            <input
-                                type="text"
-                                style={styles.input}
-                                value={newObservation.valueText}
-                                onChange={(e) => setNewObservation({...newObservation, valueText: e.target.value})}
-                                placeholder="t.ex. 120/80, 37.5°C"
+                            Beskrivning:
+                            <textarea
+                                style={styles.textarea}
+                                value={newObservation.description}
+                                onChange={(e) => setNewObservation({...newObservation, description: e.target.value})}
+                                placeholder="Beskriv observationen, t.ex. 'Blodtryck: 120/80 mmHg', 'Temperatur: 37.5°C', 'Puls: 72 slag/min'"
                                 required
                             />
                         </label>
@@ -446,7 +439,7 @@ function StaffPatientDetails({ patient, userId, onBack }) {
                     <ul>
                         {observations.map(obs => (
                             <li key={obs.id} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
-                                <strong>{obs.code}:</strong> {obs.valueText}
+                                {obs.description}
                                 <span style={{ color: '#666', fontSize: '12px', marginLeft: '10px' }}>
                                     ({new Date(obs.effectiveDateTime).toLocaleString()})
                                 </span>
@@ -467,24 +460,12 @@ function StaffPatientDetails({ patient, userId, onBack }) {
                     <form onSubmit={handleAddCondition} style={{ marginTop: '20px', padding: '20px', background: '#f9f9f9', borderRadius: '8px' }}>
                         <h4>Ny diagnos</h4>
                         <label>
-                            Diagnoskod:
-                            <input
-                                type="text"
-                                style={styles.input}
-                                value={newCondition.code}
-                                onChange={(e) => setNewCondition({...newCondition, code: e.target.value})}
-                                placeholder="t.ex. J06.9, M54.5"
-                                required
-                            />
-                        </label>
-                        <label>
                             Beskrivning:
-                            <input
-                                type="text"
-                                style={styles.input}
-                                value={newCondition.display}
-                                onChange={(e) => setNewCondition({...newCondition, display: e.target.value})}
-                                placeholder="t.ex. Övre luftvägsinfektion"
+                            <textarea
+                                style={styles.textarea}
+                                value={newCondition.description}
+                                onChange={(e) => setNewCondition({...newCondition, description: e.target.value})}
+                                placeholder="Beskriv diagnosen, t.ex. 'Övre luftvägsinfektion (J06.9)', 'Diabetes typ 2 (E11.9)', 'Ryggsmärta (M54.5)'"
                                 required
                             />
                         </label>
@@ -508,7 +489,7 @@ function StaffPatientDetails({ patient, userId, onBack }) {
                     <ul>
                         {conditions.map(cond => (
                             <li key={cond.id} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
-                                <strong>{cond.code}:</strong> {cond.display}
+                                {cond.description}
                                 <span style={{ color: '#666', fontSize: '12px', marginLeft: '10px' }}>
                                     ({new Date(cond.assertedDate).toLocaleDateString()})
                                 </span>
