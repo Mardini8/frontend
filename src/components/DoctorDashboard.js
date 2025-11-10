@@ -8,6 +8,25 @@ function DoctorDashboard({ user, onLogout }) {
     const [patients, setPatients] = useState([]);
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [loading, setLoading] = useState(false);
+    const formatDate = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${day}/${month}/${year} ${hours}:${minutes}`;
+    };
+
+    const formatDateOnly = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+    };
 
     // Hämta alla patienter
     useEffect(() => {
@@ -431,7 +450,7 @@ function PatientDetails({ patient, practitionerId, onBack }) {
                             <li key={obs.id} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
                                 {obs.description}
                                 <span style={{ color: '#666', fontSize: '12px', marginLeft: '10px' }}>
-                                    ({new Date(obs.effectiveDateTime).toLocaleString()})
+                                    ({formatDate(obs.effectiveDateTime)})
                                 </span>
                             </li>
                         ))}
@@ -481,7 +500,7 @@ function PatientDetails({ patient, practitionerId, onBack }) {
                             <li key={cond.id} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
                                 {cond.description}
                                 <span style={{ color: '#666', fontSize: '12px', marginLeft: '10px' }}>
-                                    ({new Date(cond.assertedDate).toLocaleDateString()})
+                                    ({formatDateOnly(cond.assertedDate)})
                                 </span>
                             </li>
                         ))}
@@ -528,8 +547,8 @@ function PatientDetails({ patient, practitionerId, onBack }) {
                     <ul>
                         {encounters.map(enc => (
                             <li key={enc.id} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
-                                Besök: {new Date(enc.startTime).toLocaleString()}
-                                {enc.endTime && ` - ${new Date(enc.endTime).toLocaleString()}`}
+                                Besök: {formatDate(enc.startTime)}
+                                {enc.endTime && ` - ${formatDate(enc.endTime)}`}
                             </li>
                         ))}
                     </ul>

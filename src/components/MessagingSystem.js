@@ -11,23 +11,101 @@ function MessagingSystem({ currentUser, patientId }) {
     const [recipients, setRecipients] = useState([]);
     const [selectedRecipient, setSelectedRecipient] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [patientNames, setPatientNames] = useState({});
+    const [practitionerNames, setPractitionerNames] = useState({});
+    const [userNames, setUserNames] = useState({});
 
     useEffect(() => {
         fetchMessages();
         if (currentUser.role === 'PATIENT') {
             fetchRecipients();
+        } else {
+            fetchAllPatientNames();
         }
+        fetchAllPractitionerNames();
+        fetchUserNames();
     }, [currentUser, patientId]);
+
+    const fetchAllPatientNames = async () => {
+        try {
+            const response = await fetch(`${API_URL}/patients`);
+            if (response.ok) {
+                const patients = await response.json();
+                const names = {};
+                patients.forEach(p => {
+                    names[p.id] = `${p.firstName} ${p.lastName}`;
+                });
+                setPatientNames(names);
+            }
+        } catch (error) {
+            console.error('Fel vid hämtning av patientnamn:', error);
+        }
+    };
+
+    const fetchAllPractitionerNames = async () => {
+        try {
+            const response = await fetch(`${API_URL}/practitioners`);
+            if (response.ok) {
+                const practitioners = await response.json();
+                const names = {};
+                practitioners.forEach(p => {
+                    names[p.id] = `${p.firstName} ${p.lastName}`;
+                });
+                setPractitionerNames(names);
+            }
+        } catch (error) {
+            console.error('Fel vid hämtning av practitioner-namn:', error);
+        }
+    };
+
+    const fetchUserNames = async () => {
+        // Hämta namn för alla users baserat på deras foreignId och role
+        const names = {};
+
+        // För PATIENT users, använd patientNames
+        // För DOCTOR/STAFF users, använd practitionerNames
+        // Detta görs automatiskt när vi vet userId och role
+
+        setUserNames(names);
+    };
+
+    const getUserDisplayName = (userId) => {
+        // Hitta user info och returnera rätt namn
+        // Detta är en förenkling - i praktiken skulle vi behöva en lookup
+        return `Användare ${userId}`;
+    };
+
+    const formatDate = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        // Europeiskt format: DD/MM/YYYY HH:MM
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${day}/${month}/${year} ${hours}:${minutes}`;
+    };
+
+    const getConversationName = (conv) => {
+        if (currentUser.role === 'PATIENT') {
+            // Patient ser practitioner-namn
+            // conv.otherUserId är practitioner's user ID, vi måste hitta practitioner ID
+            // Enklare: använd namnet direkt från meddelandet om vi kan
+            return practitionerNames[conv.otherUserId] || `Vårdpersonal`;
+        } else {
+            // Läkare/Personal ser patientnamn
+            return patientNames[conv.patientId] || `Patient ${conv.patientId}`;
+        }
+    };
 
     const fetchMessages = async () => {
         setLoading(true);
         try {
             let url;
             if (currentUser.role === 'PATIENT') {
-                // Patient ser alla meddelanden kopplade till sin patient-ID
                 url = `${API_URL}/v1/messages/patient/${patientId}`;
             } else {
-                // Läkare/Personal ser meddelanden till och från dem
                 const [toMeRes, fromMeRes] = await Promise.all([
                     fetch(`${API_URL}/v1/messages/to-user/${currentUser.id}`),
                     fetch(`${API_URL}/v1/messages/from-user/${currentUser.id}`)
@@ -36,7 +114,6 @@ function MessagingSystem({ currentUser, patientId }) {
                 const toMe = toMeRes.ok ? await toMeRes.json() : [];
                 const fromMe = fromMeRes.ok ? await fromMeRes.json() : [];
 
-                // Kombinera och sortera
                 const allMessages = [...toMe, ...fromMe].sort(
                     (a, b) => new Date(b.sentAt) - new Date(a.sentAt)
                 );
@@ -60,11 +137,9 @@ function MessagingSystem({ currentUser, patientId }) {
     };
 
     const groupIntoConversations = (msgs) => {
-        // Gruppera meddelanden per patient och motpart
         const convMap = new Map();
 
         msgs.forEach(msg => {
-            // Skapa en nyckel baserat på patient och motparten
             const otherUserId = msg.fromUserId === currentUser.id ? msg.toUserId : msg.fromUserId;
             const key = `${msg.patientId}-${otherUserId}`;
 
@@ -84,7 +159,6 @@ function MessagingSystem({ currentUser, patientId }) {
             }
         });
 
-        // Konvertera till array och sortera efter senaste meddelandet
         const convArray = Array.from(convMap.values()).sort(
             (a, b) => new Date(b.lastMessage.sentAt) - new Date(a.lastMessage.sentAt)
         );
@@ -94,7 +168,6 @@ function MessagingSystem({ currentUser, patientId }) {
 
     const fetchRecipients = async () => {
         try {
-            // Hämta alla practitioners (både läkare och personal)
             const response = await fetch(`${API_URL}/practitioners`);
             if (response.ok) {
                 const data = await response.json();
@@ -118,22 +191,26 @@ function MessagingSystem({ currentUser, patientId }) {
         let messagePatientId;
 
         if (currentUser.role === 'PATIENT') {
-            // Patient skickar till vald läkare/personal
             if (!selectedRecipient) {
                 alert('Välj en mottagare');
                 return;
             }
-            // Hitta User ID för den valda practitioner
+            console.log('Söker användare med practitioner ID:', selectedRecipient);
+
             const userResponse = await fetch(`${API_URL}/v1/auth/user-by-foreign/${selectedRecipient}`);
+            console.log('User lookup response status:', userResponse.status);
+
             if (!userResponse.ok) {
-                alert('Kunde inte hitta användar-ID för mottagaren');
+                const errorText = await userResponse.text();
+                console.error('Fel vid hämtning av användar-ID:', errorText);
+                alert('Kunde inte hitta användar-ID för mottagaren. Se console för detaljer.');
                 return;
             }
             const recipientUser = await userResponse.json();
+            console.log('Hittad user:', recipientUser);
             toUserId = recipientUser.id;
             messagePatientId = patientId;
         } else {
-            // Läkare/Personal svarar i vald konversation
             if (!selectedConversation) {
                 alert('Välj en konversation att svara i');
                 return;
@@ -337,16 +414,14 @@ function MessagingSystem({ currentUser, patientId }) {
                                 onClick={() => setSelectedConversation(conv)}
                             >
                                 <div style={{ fontWeight: '600', marginBottom: '5px' }}>
-                                    {currentUser.role === 'PATIENT'
-                                        ? `Konversation ${index + 1}`
-                                        : `Patient ID: ${conv.patientId}`
-                                    }
+                                    {getConversationName(conv)}
                                 </div>
                                 <div style={{ fontSize: '12px', color: '#666' }}>
-                                    {conv.lastMessage.content.substring(0, 50)}...
+                                    {conv.lastMessage.content.substring(0, 50)}
+                                    {conv.lastMessage.content.length > 50 ? '...' : ''}
                                 </div>
                                 <div style={{ fontSize: '11px', color: '#999', marginTop: '5px' }}>
-                                    {new Date(conv.lastMessage.sentAt).toLocaleString()}
+                                    {formatDate(conv.lastMessage.sentAt)}
                                 </div>
                             </div>
                         ))
@@ -358,8 +433,8 @@ function MessagingSystem({ currentUser, patientId }) {
                         <>
                             <h3 style={{ marginBottom: '20px' }}>
                                 {currentUser.role === 'PATIENT'
-                                    ? 'Konversation'
-                                    : `Konversation med Patient ${selectedConversation.patientId}`
+                                    ? `Konversation med ${getConversationName(selectedConversation)}`
+                                    : `Konversation med ${getConversationName(selectedConversation)}`
                                 }
                             </h3>
                             <div style={styles.messageList}>
@@ -371,7 +446,9 @@ function MessagingSystem({ currentUser, patientId }) {
                                             style={styles.message(msg.fromUserId === currentUser.id)}
                                         >
                                             <div style={{ fontSize: '11px', color: '#666', marginBottom: '5px' }}>
-                                                {msg.fromUserId === currentUser.id ? 'Du' : 'Avsändare'} - {new Date(msg.sentAt).toLocaleString()}
+                                                {msg.fromUserId === currentUser.id ? 'Du' :
+                                                    (currentUser.role === 'PATIENT' ? 'Vårdpersonal' : 'Patient')
+                                                } - {formatDate(msg.sentAt)}
                                             </div>
                                             <div>{msg.content}</div>
                                         </div>

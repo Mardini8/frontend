@@ -3,6 +3,28 @@ import MessagingSystem from './MessagingSystem';
 
 const API_URL = 'http://localhost:8080/api';
 
+// Formatera datum till europeiskt format: DD/MM/YYYY HH:MM
+const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+};
+
+// Formatera endast datum: DD/MM/YYYY
+const formatDateOnly = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+};
+
 function PatientDashboard({ user, onLogout }) {
     const [activeTab, setActiveTab] = useState('overview');
     const [patientInfo, setPatientInfo] = useState(null);
@@ -11,8 +33,6 @@ function PatientDashboard({ user, onLogout }) {
     const [encounters, setEncounters] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    // Använd foreignId för att hitta rätt patient
-    // foreignId pekar på patient.id i databasen
     const patientId = user.foreignId;
 
     useEffect(() => {
@@ -22,13 +42,11 @@ function PatientDashboard({ user, onLogout }) {
     const fetchPatientData = async () => {
         setLoading(true);
         try {
-            // Hämta patientinformation
             const patientRes = await fetch(`${API_URL}/patients/${patientId}`);
             if (patientRes.ok) {
                 setPatientInfo(await patientRes.json());
             }
 
-            // Hämta klinisk data
             const [obsRes, condRes, encRes] = await Promise.all([
                 fetch(`${API_URL}/v1/clinical/observations/patient/${patientId}`),
                 fetch(`${API_URL}/v1/clinical/conditions/patient/${patientId}`),
@@ -174,7 +192,7 @@ function PatientDashboard({ user, onLogout }) {
                                     </div>
                                     <div style={styles.infoRow}>
                                         <strong>Födelsedatum:</strong>
-                                        <span>{patientInfo.dateOfBirth}</span>
+                                        <span>{formatDateOnly(patientInfo.dateOfBirth)}</span>
                                     </div>
                                 </div>
 
@@ -204,7 +222,7 @@ function PatientDashboard({ user, onLogout }) {
                                         {observations.map(obs => (
                                             <tr key={obs.id}>
                                                 <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
-                                                    {new Date(obs.effectiveDateTime).toLocaleString()}
+                                                    {formatDate(obs.effectiveDateTime)}
                                                 </td>
                                                 <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}>{obs.description}</td>
                                             </tr>
@@ -232,7 +250,7 @@ function PatientDashboard({ user, onLogout }) {
                                         {conditions.map(cond => (
                                             <tr key={cond.id}>
                                                 <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
-                                                    {new Date(cond.assertedDate).toLocaleDateString()}
+                                                    {formatDateOnly(cond.assertedDate)}
                                                 </td>
                                                 <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}>{cond.description}</td>
                                             </tr>
@@ -260,10 +278,10 @@ function PatientDashboard({ user, onLogout }) {
                                         {encounters.map(enc => (
                                             <tr key={enc.id}>
                                                 <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
-                                                    {new Date(enc.startTime).toLocaleString()}
+                                                    {formatDate(enc.startTime)}
                                                 </td>
                                                 <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
-                                                    {enc.endTime ? new Date(enc.endTime).toLocaleString() : 'Pågående'}
+                                                    {enc.endTime ? formatDate(enc.endTime) : 'Pågående'}
                                                 </td>
                                             </tr>
                                         ))}
