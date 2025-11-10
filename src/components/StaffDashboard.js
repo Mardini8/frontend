@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import MessagingSystem from './MessagingSystem';
 
 const API_URL = 'http://localhost:8080/api';
 
@@ -202,7 +203,7 @@ function StaffDashboard({ user, onLogout }) {
                 {activeTab === 'messages' && (
                     <div style={styles.card}>
                         <h2>Meddelanden</h2>
-                        <p>Här visas meddelanden från patienter</p>
+                        <MessagingSystem currentUser={user} patientId={null} />
                     </div>
                 )}
             </div>

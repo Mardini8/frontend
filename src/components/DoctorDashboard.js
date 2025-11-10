@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import MessagingSystem from './MessagingSystem';
 
 const API_URL = 'http://localhost:8080/api';
 
@@ -6,15 +7,12 @@ function DoctorDashboard({ user, onLogout }) {
     const [activeTab, setActiveTab] = useState('patients');
     const [patients, setPatients] = useState([]);
     const [selectedPatient, setSelectedPatient] = useState(null);
-    const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(false);
 
     // Hämta alla patienter
     useEffect(() => {
         if (activeTab === 'patients') {
             fetchPatients();
-        } else if (activeTab === 'messages') {
-            fetchMessages();
         }
     }, [activeTab]);
 
@@ -31,11 +29,6 @@ function DoctorDashboard({ user, onLogout }) {
         } finally {
             setLoading(false);
         }
-    };
-
-    const fetchMessages = async () => {
-        // Implementera meddelandehämtning
-        setMessages([]);
     };
 
     const viewPatientDetails = async (patient) => {
@@ -201,7 +194,7 @@ function DoctorDashboard({ user, onLogout }) {
                 {activeTab === 'messages' && (
                     <div style={styles.card}>
                         <h2>Meddelanden</h2>
-                        <p>Här visas meddelanden från patienter</p>
+                        <MessagingSystem currentUser={user} patientId={null} />
                     </div>
                 )}
             </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import MessagingSystem from './MessagingSystem';
 
 const API_URL = 'http://localhost:8080/api';
 
@@ -8,7 +9,6 @@ function PatientDashboard({ user, onLogout }) {
     const [observations, setObservations] = useState([]);
     const [conditions, setConditions] = useState([]);
     const [encounters, setEncounters] = useState([]);
-    const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(false);
 
     // Använd foreignId för att hitta rätt patient
@@ -38,10 +38,6 @@ function PatientDashboard({ user, onLogout }) {
             if (obsRes.ok) setObservations(await obsRes.json());
             if (condRes.ok) setConditions(await condRes.json());
             if (encRes.ok) setEncounters(await encRes.json());
-
-            // Hämta meddelanden
-            const msgRes = await fetch(`${API_URL}/v1/messages/patient/${patientId}`);
-            if (msgRes.ok) setMessages(await msgRes.json());
 
         } catch (error) {
             console.error('Fel vid hämtning av patientdata:', error);
@@ -187,7 +183,6 @@ function PatientDashboard({ user, onLogout }) {
                                     <p><strong>Observationer:</strong> {observations.length} st</p>
                                     <p><strong>Diagnoser:</strong> {conditions.length} st</p>
                                     <p><strong>Besök:</strong> {encounters.length} st</p>
-                                    <p><strong>Meddelanden:</strong> {messages.length} st</p>
                                 </div>
                             </div>
                         )}
@@ -281,27 +276,7 @@ function PatientDashboard({ user, onLogout }) {
                         {activeTab === 'messages' && (
                             <div style={styles.card}>
                                 <h2>Meddelanden</h2>
-                                <p>Här kan du skicka och ta emot meddelanden från vårdpersonal</p>
-                                {messages.length === 0 ? (
-                                    <p>Inga meddelanden</p>
-                                ) : (
-                                    <div>
-                                        {messages.map(msg => (
-                                            <div key={msg.id} style={{
-                                                padding: '15px',
-                                                marginBottom: '10px',
-                                                background: '#f9f9f9',
-                                                borderRadius: '8px',
-                                                borderLeft: '4px solid #667eea'
-                                            }}>
-                                                <p style={{ margin: '0 0 5px 0', fontSize: '12px', color: '#666' }}>
-                                                    {new Date(msg.sentAt).toLocaleString()}
-                                                </p>
-                                                <p style={{ margin: 0 }}>{msg.content}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                <MessagingSystem currentUser={user} patientId={patientId} />
                             </div>
                         )}
                     </>
