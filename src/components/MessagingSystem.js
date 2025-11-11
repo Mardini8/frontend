@@ -191,26 +191,36 @@ function MessagingSystem({ currentUser, patientId }) {
         let messagePatientId;
 
         if (currentUser.role === 'PATIENT') {
-            if (!selectedRecipient) {
+            // Om patient svarar i befintlig konversation
+            if (selectedConversation) {
+                toUserId = selectedConversation.otherUserId;
+                messagePatientId = patientId;
+            }
+            // Om patient skriver nytt meddelande
+            else if (selectedRecipient) {
+                console.log('Söker användare med practitioner ID:', selectedRecipient);
+
+                const userResponse = await fetch(`${API_URL}/v1/auth/user-by-foreign/${selectedRecipient}`);
+                console.log('User lookup response status:', userResponse.status);
+
+                if (!userResponse.ok) {
+                    const errorText = await userResponse.text();
+                    console.error('Fel vid hämtning av användar-ID:', errorText);
+                    alert('Kunde inte hitta användar-ID för mottagaren. Se console för detaljer.');
+                    return;
+                }
+                const recipientUser = await userResponse.json();
+                console.log('Hittad user:', recipientUser);
+                toUserId = recipientUser.id;
+                messagePatientId = patientId;
+            }
+            // Varken konversation eller mottagare vald
+            else {
                 alert('Välj en mottagare');
                 return;
             }
-            console.log('Söker användare med practitioner ID:', selectedRecipient);
-
-            const userResponse = await fetch(`${API_URL}/v1/auth/user-by-foreign/${selectedRecipient}`);
-            console.log('User lookup response status:', userResponse.status);
-
-            if (!userResponse.ok) {
-                const errorText = await userResponse.text();
-                console.error('Fel vid hämtning av användar-ID:', errorText);
-                alert('Kunde inte hitta användar-ID för mottagaren. Se console för detaljer.');
-                return;
-            }
-            const recipientUser = await userResponse.json();
-            console.log('Hittad user:', recipientUser);
-            toUserId = recipientUser.id;
-            messagePatientId = patientId;
         } else {
+            // Läkare/Personal måste ha vald konversation
             if (!selectedConversation) {
                 alert('Välj en konversation att svara i');
                 return;
