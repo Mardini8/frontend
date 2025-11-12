@@ -67,19 +67,8 @@ function Register({ onRegisterSuccess, onBackToLogin }) {
             return;
         }
 
-        // Hitta den valda personen för att få FHIR UUID
-        const selectedPerson = role === 'PATIENT'
-            ? patients.find(p => p.id === parseInt(foreignId))
-            : practitioners.find(p => p.id === parseInt(foreignId));
-
-        if (!selectedPerson) {
-            setError('Kunde inte hitta vald person');
-            setLoading(false);
-            return;
-        }
-
-        // Använd socialSecurityNumber som FHIR UUID (inte ID)
-        const fhirUuid = selectedPerson.socialSecurityNumber;
+        // foreignId är redan personnummer (socialSecurityNumber) från select
+        const fhirUuid = foreignId;
         console.log('Skapar användare med FHIR UUID:', fhirUuid);
 
         try {
@@ -184,7 +173,10 @@ function Register({ onRegisterSuccess, onBackToLogin }) {
                     </label>
                     <select
                         value={foreignId}
-                        onChange={(e) => setForeignId(e.target.value)}
+                        onChange={(e) => {
+                            console.log('Valt value:', e.target.value);
+                            setForeignId(e.target.value);
+                        }}
                         required
                         style={{
                             width: '100%',
@@ -197,9 +189,12 @@ function Register({ onRegisterSuccess, onBackToLogin }) {
                     >
                         <option value="">-- Välj {personLabel} --</option>
                         {availablePersons.map(person => (
-                            <option key={person.id} value={person.id}>
+                            <option
+                                key={person.socialSecurityNumber}
+                                value={person.socialSecurityNumber}
+                            >
                                 {person.firstName} {person.lastName}
-                                {person.socialSecurityNumber && ` (${person.socialSecurityNumber})`}
+                                {person.socialSecurityNumber && ` (${person.socialSecurityNumber.substring(0, 8)}...)`}
                             </option>
                         ))}
                     </select>

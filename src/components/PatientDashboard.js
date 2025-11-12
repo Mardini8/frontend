@@ -330,7 +330,7 @@ function PatientDashboard({ user, onLogout }) {
                         {activeTab === 'messages' && (
                             <div style={styles.card}>
                                 <h2>Meddelanden</h2>
-                                <MessagingSystem currentUser={user} patientId={patientId} />
+                                <MessagingSystem currentUser={user} patientPersonnummer={patientId} />
                             </div>
                         )}
                     </>

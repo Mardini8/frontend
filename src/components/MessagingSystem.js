@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 const API_URL = 'http://localhost:8080/api';
 
-function MessagingSystem({ currentUser, patientId }) {
+function MessagingSystem({ currentUser, patientPersonnummer }) {
     const [messages, setMessages] = useState([]);
     const [conversations, setConversations] = useState([]);
     const [selectedConversation, setSelectedConversation] = useState(null);
@@ -13,7 +13,6 @@ function MessagingSystem({ currentUser, patientId }) {
     const [loading, setLoading] = useState(false);
     const [patientNames, setPatientNames] = useState({});
     const [practitionerNames, setPractitionerNames] = useState({});
-    const [userNames, setUserNames] = useState({});
 
     useEffect(() => {
         fetchMessages();
@@ -23,8 +22,7 @@ function MessagingSystem({ currentUser, patientId }) {
             fetchAllPatientNames();
         }
         fetchAllPractitionerNames();
-        fetchUserNames();
-    }, [currentUser, patientId]);
+    }, [currentUser, patientPersonnummer]);
 
     const fetchAllPatientNames = async () => {
         try {
@@ -33,7 +31,7 @@ function MessagingSystem({ currentUser, patientId }) {
                 const patients = await response.json();
                 const names = {};
                 patients.forEach(p => {
-                    names[p.id] = `${p.firstName} ${p.lastName}`;
+                    names[p.socialSecurityNumber] = `${p.firstName} ${p.lastName}`;
                 });
                 setPatientNames(names);
             }
@@ -58,27 +56,9 @@ function MessagingSystem({ currentUser, patientId }) {
         }
     };
 
-    const fetchUserNames = async () => {
-        // Hämta namn för alla users baserat på deras foreignId och role
-        const names = {};
-
-        // För PATIENT users, använd patientNames
-        // För DOCTOR/STAFF users, använd practitionerNames
-        // Detta görs automatiskt när vi vet userId och role
-
-        setUserNames(names);
-    };
-
-    const getUserDisplayName = (userId) => {
-        // Hitta user info och returnera rätt namn
-        // Detta är en förenkling - i praktiken skulle vi behöva en lookup
-        return `Användare ${userId}`;
-    };
-
     const formatDate = (dateString) => {
         if (!dateString) return '';
         const date = new Date(dateString);
-        // Europeiskt format: DD/MM/YYYY HH:MM
         const day = String(date.getDate()).padStart(2, '0');
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const year = date.getFullYear();
@@ -89,13 +69,9 @@ function MessagingSystem({ currentUser, patientId }) {
 
     const getConversationName = (conv) => {
         if (currentUser.role === 'PATIENT') {
-            // Patient ser practitioner-namn
-            // conv.otherUserId är practitioner's user ID, vi måste hitta practitioner ID
-            // Enklare: använd namnet direkt från meddelandet om vi kan
             return practitionerNames[conv.otherUserId] || `Vårdpersonal`;
         } else {
-            // Läkare/Personal ser patientnamn
-            return patientNames[conv.patientId] || `Patient ${conv.patientId}`;
+            return patientNames[conv.patientPersonnummer] || `Patient`;
         }
     };
 
@@ -104,7 +80,7 @@ function MessagingSystem({ currentUser, patientId }) {
         try {
             let url;
             if (currentUser.role === 'PATIENT') {
-                url = `${API_URL}/v1/messages/patient/${patientId}`;
+                url = `${API_URL}/v1/messages/patient/${patientPersonnummer}`;
             } else {
                 const [toMeRes, fromMeRes] = await Promise.all([
                     fetch(`${API_URL}/v1/messages/to-user/${currentUser.id}`),
@@ -141,11 +117,11 @@ function MessagingSystem({ currentUser, patientId }) {
 
         msgs.forEach(msg => {
             const otherUserId = msg.fromUserId === currentUser.id ? msg.toUserId : msg.fromUserId;
-            const key = `${msg.patientId}-${otherUserId}`;
+            const key = `${msg.patientPersonnummer}-${otherUserId}`;
 
             if (!convMap.has(key)) {
                 convMap.set(key, {
-                    patientId: msg.patientId,
+                    patientPersonnummer: msg.patientPersonnummer,
                     otherUserId: otherUserId,
                     messages: [],
                     lastMessage: null
@@ -188,17 +164,15 @@ function MessagingSystem({ currentUser, patientId }) {
         }
 
         let toUserId;
-        let messagePatientId;
+        let messagePatientPersonnummer;
 
         if (currentUser.role === 'PATIENT') {
-            // Om patient svarar i befintlig konversation
             if (selectedConversation) {
                 toUserId = selectedConversation.otherUserId;
-                messagePatientId = patientId;
-            }
-            // Om patient skriver nytt meddelande
-            else if (selectedRecipient) {
-                console.log('Söker användare med practitioner ID:', selectedRecipient);
+                messagePatientPersonnummer = patientPersonnummer;
+            } else if (selectedRecipient) {
+                // VIKTIGT: selectedRecipient är nu personnummer (String), inte ID
+                console.log('Söker användare med practitioner personnummer:', selectedRecipient);
 
                 const userResponse = await fetch(`${API_URL}/v1/auth/user-by-foreign/${selectedRecipient}`);
                 console.log('User lookup response status:', userResponse.status);
@@ -212,21 +186,18 @@ function MessagingSystem({ currentUser, patientId }) {
                 const recipientUser = await userResponse.json();
                 console.log('Hittad user:', recipientUser);
                 toUserId = recipientUser.id;
-                messagePatientId = patientId;
-            }
-            // Varken konversation eller mottagare vald
-            else {
+                messagePatientPersonnummer = patientPersonnummer;
+            } else {
                 alert('Välj en mottagare');
                 return;
             }
         } else {
-            // Läkare/Personal måste ha vald konversation
             if (!selectedConversation) {
                 alert('Välj en konversation att svara i');
                 return;
             }
             toUserId = selectedConversation.otherUserId;
-            messagePatientId = selectedConversation.patientId;
+            messagePatientPersonnummer = selectedConversation.patientPersonnummer;
         }
 
         try {
@@ -236,7 +207,7 @@ function MessagingSystem({ currentUser, patientId }) {
                 body: JSON.stringify({
                     fromUserId: currentUser.id,
                     toUserId: toUserId,
-                    patientId: messagePatientId,
+                    patientPersonnummer: messagePatientPersonnummer,
                     content: newMessage,
                     sentAt: new Date().toISOString()
                 })
@@ -248,7 +219,9 @@ function MessagingSystem({ currentUser, patientId }) {
                 setSelectedRecipient(null);
                 fetchMessages();
             } else {
-                alert('Kunde inte skicka meddelandet');
+                const errorText = await response.text();
+                console.error('Fel vid skickande:', errorText);
+                alert('Kunde inte skicka meddelandet: ' + errorText);
             }
         } catch (error) {
             console.error('Fel vid skickande av meddelande:', error);
@@ -376,7 +349,7 @@ function MessagingSystem({ currentUser, patientId }) {
                         style={styles.select}
                         value={selectedRecipient || ''}
                         onChange={(e) => {
-                            console.log('Vald mottagare:', e.target.value);
+                            console.log('Vald mottagare personnummer:', e.target.value);
                             setSelectedRecipient(e.target.value);
                         }}
                     >
@@ -385,7 +358,7 @@ function MessagingSystem({ currentUser, patientId }) {
                             <option value="" disabled>Inga mottagare tillgängliga</option>
                         ) : (
                             recipients.map(recipient => (
-                                <option key={recipient.id} value={recipient.id}>
+                                <option key={recipient.socialSecurityNumber} value={recipient.socialSecurityNumber}>
                                     {recipient.firstName} {recipient.lastName} ({recipient.title})
                                 </option>
                             ))
