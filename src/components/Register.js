@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const API_URL = 'http://localhost:8080/api';
 const AUTH_URL = 'http://localhost:8080/api/v1/auth';
@@ -8,72 +8,82 @@ function Register({ onRegisterSuccess, onBackToLogin }) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [role, setRole] = useState('PATIENT');
+    const [foreignId, setForeignId] = useState('');
 
-    // Personuppgifter
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [socialSecurityNumber, setSocialSecurityNumber] = useState('');
-    const [dateOfBirth, setDateOfBirth] = useState('');
-
-    // För Practitioner
-    const [title, setTitle] = useState('Staff'); // 'Doctor' eller 'Staff'
+    // Listor från HAPI
+    const [patients, setPatients] = useState([]);
+    const [practitioners, setPractitioners] = useState([]);
+    const [loading, setLoading] = useState(false);
 
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
-    const [loading, setLoading] = useState(false);
+
+    // Hämta patienter/practitioners när roll ändras
+    useEffect(() => {
+        if (role === 'PATIENT') {
+            fetchPatients();
+        } else if (role === 'DOCTOR' || role === 'STAFF') {
+            fetchPractitioners();
+        }
+    }, [role]);
+
+    const fetchPatients = async () => {
+        try {
+            const response = await fetch(`${API_URL}/patients`);
+            if (response.ok) {
+                const data = await response.json();
+                setPatients(data);
+                console.log('Patienter hämtade från HAPI:', data);
+            }
+        } catch (error) {
+            console.error('Fel vid hämtning av patienter:', error);
+            setError('Kunde inte hämta patienter från servern');
+        }
+    };
+
+    const fetchPractitioners = async () => {
+        try {
+            const response = await fetch(`${API_URL}/practitioners`);
+            if (response.ok) {
+                const data = await response.json();
+                setPractitioners(data);
+                console.log('Practitioners hämtade från HAPI:', data);
+            }
+        } catch (error) {
+            console.error('Fel vid hämtning av practitioners:', error);
+            setError('Kunde inte hämta vårdpersonal från servern');
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
 
+        // Validera att en patient/practitioner är vald
+        if (!foreignId) {
+            setError('Du måste välja en person att koppla kontot till');
+            setLoading(false);
+            return;
+        }
+
+        // Hitta den valda personen för att få FHIR UUID
+        const selectedPerson = role === 'PATIENT'
+            ? patients.find(p => p.id === parseInt(foreignId))
+            : practitioners.find(p => p.id === parseInt(foreignId));
+
+        if (!selectedPerson) {
+            setError('Kunde inte hitta vald person');
+            setLoading(false);
+            return;
+        }
+
+        // Använd socialSecurityNumber som FHIR UUID (inte ID)
+        const fhirUuid = selectedPerson.socialSecurityNumber;
+        console.log('Skapar användare med FHIR UUID:', fhirUuid);
+
         try {
-            let foreignId = null;
-
-            // Steg 1: Skapa Patient eller Practitioner först
-            if (role === 'PATIENT') {
-                // Skapa Patient
-                const patientResponse = await fetch(`${API_URL}/patients`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        firstName,
-                        lastName,
-                        socialSecurityNumber,
-                        dateOfBirth
-                    })
-                });
-
-                if (!patientResponse.ok) {
-                    throw new Error('Kunde inte skapa patient');
-                }
-
-                const patient = await patientResponse.json();
-                foreignId = patient.id;
-
-            } else if (role === 'DOCTOR' || role === 'STAFF') {
-                // Skapa Practitioner
-                const practitionerResponse = await fetch(`${API_URL}/practitioners`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        firstName,
-                        lastName,
-                        socialSecurityNumber,
-                        dateOfBirth,
-                        title: role === 'DOCTOR' ? 'Doctor' : 'Staff'
-                    })
-                });
-
-                if (!practitionerResponse.ok) {
-                    throw new Error('Kunde inte skapa practitioner');
-                }
-
-                const practitioner = await practitionerResponse.json();
-                foreignId = practitioner.id;
-            }
-
-            // Steg 2: Skapa User med foreignId
+            // Skapa User med FHIR UUID som foreignId
             const userResponse = await fetch(`${AUTH_URL}/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -82,7 +92,7 @@ function Register({ onRegisterSuccess, onBackToLogin }) {
                     email,
                     password,
                     role,
-                    foreignId
+                    foreignId: fhirUuid  // FHIR UUID från socialSecurityNumber
                 })
             });
 
@@ -119,6 +129,10 @@ function Register({ onRegisterSuccess, onBackToLogin }) {
         );
     }
 
+    // Bestäm vilken lista som ska visas
+    const availablePersons = role === 'PATIENT' ? patients : practitioners;
+    const personLabel = role === 'PATIENT' ? 'Patient' : 'Vårdpersonal';
+
     return (
         <div style={{
             background: 'white',
@@ -142,7 +156,10 @@ function Register({ onRegisterSuccess, onBackToLogin }) {
                     </label>
                     <select
                         value={role}
-                        onChange={(e) => setRole(e.target.value)}
+                        onChange={(e) => {
+                            setRole(e.target.value);
+                            setForeignId(''); // Återställ val när roll ändras
+                        }}
                         style={{
                             width: '100%',
                             padding: '12px',
@@ -160,17 +177,14 @@ function Register({ onRegisterSuccess, onBackToLogin }) {
 
                 <hr style={{ margin: '30px 0', border: 'none', borderTop: '1px solid #eee' }} />
 
-                <h3 style={{ marginBottom: '20px', fontSize: '18px' }}>Personuppgifter</h3>
-
-                {/* Förnamn */}
-                <div style={{ marginBottom: '15px' }}>
+                {/* Välj Patient/Practitioner från HAPI */}
+                <div style={{ marginBottom: '20px' }}>
                     <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
-                        Förnamn *
+                        Välj {personLabel} *
                     </label>
-                    <input
-                        type="text"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
+                    <select
+                        value={foreignId}
+                        onChange={(e) => setForeignId(e.target.value)}
                         required
                         style={{
                             width: '100%',
@@ -180,71 +194,20 @@ function Register({ onRegisterSuccess, onBackToLogin }) {
                             fontSize: '16px',
                             boxSizing: 'border-box'
                         }}
-                    />
-                </div>
-
-                {/* Efternamn */}
-                <div style={{ marginBottom: '15px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
-                        Efternamn *
-                    </label>
-                    <input
-                        type="text"
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                        required
-                        style={{
-                            width: '100%',
-                            padding: '12px',
-                            border: '1px solid #ddd',
-                            borderRadius: '6px',
-                            fontSize: '16px',
-                            boxSizing: 'border-box'
-                        }}
-                    />
-                </div>
-
-                {/* Personnummer */}
-                <div style={{ marginBottom: '15px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
-                        Personnummer (ÅÅÅÅMMDD-XXXX) *
-                    </label>
-                    <input
-                        type="text"
-                        value={socialSecurityNumber}
-                        onChange={(e) => setSocialSecurityNumber(e.target.value)}
-                        placeholder="19900101-1234"
-                        required
-                        style={{
-                            width: '100%',
-                            padding: '12px',
-                            border: '1px solid #ddd',
-                            borderRadius: '6px',
-                            fontSize: '16px',
-                            boxSizing: 'border-box'
-                        }}
-                    />
-                </div>
-
-                {/* Födelsedatum */}
-                <div style={{ marginBottom: '15px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
-                        Födelsedatum *
-                    </label>
-                    <input
-                        type="date"
-                        value={dateOfBirth}
-                        onChange={(e) => setDateOfBirth(e.target.value)}
-                        required
-                        style={{
-                            width: '100%',
-                            padding: '12px',
-                            border: '1px solid #ddd',
-                            borderRadius: '6px',
-                            fontSize: '16px',
-                            boxSizing: 'border-box'
-                        }}
-                    />
+                    >
+                        <option value="">-- Välj {personLabel} --</option>
+                        {availablePersons.map(person => (
+                            <option key={person.id} value={person.id}>
+                                {person.firstName} {person.lastName}
+                                {person.socialSecurityNumber && ` (${person.socialSecurityNumber})`}
+                            </option>
+                        ))}
+                    </select>
+                    {availablePersons.length === 0 && (
+                        <small style={{ color: '#999', fontSize: '12px', marginTop: '5px', display: 'block' }}>
+                            Laddar {personLabel.toLowerCase()}...
+                        </small>
+                    )}
                 </div>
 
                 <hr style={{ margin: '30px 0', border: 'none', borderTop: '1px solid #eee' }} />

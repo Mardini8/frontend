@@ -3,6 +3,7 @@ import MessagingSystem from './MessagingSystem';
 
 const API_URL = 'http://localhost:8080/api';
 
+// Formatera datum till europeiskt format: DD/MM/YYYY HH:MM
 const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -14,6 +15,7 @@ const formatDate = (dateString) => {
     return `${day}/${month}/${year} ${hours}:${minutes}`;
 };
 
+// Formatera endast datum: DD/MM/YYYY
 const formatDateOnly = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -28,7 +30,6 @@ function DoctorDashboard({ user, onLogout }) {
     const [patients, setPatients] = useState([]);
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [loading, setLoading] = useState(false);
-
 
     // Hämta alla patienter
     useEffect(() => {
@@ -249,19 +250,45 @@ function PatientDetails({ patient, practitionerId, onBack }) {
 
     useEffect(() => {
         fetchPatientData();
-    }, [patient.id]);
+    }, [patient.socialSecurityNumber]);
 
     const fetchPatientData = async () => {
         try {
+            // Använd socialSecurityNumber som innehåller FHIR UUID
+            // T.ex. "dd256214-a911-bbc9-bc56-2976d2336c93"
+            const patientFhirId = patient.socialSecurityNumber;
+
+            console.log('Hämtar data för patient FHIR ID:', patientFhirId);
+
             const [obsRes, condRes, encRes] = await Promise.all([
-                fetch(`http://localhost:8080/api/v1/clinical/observations/patient/${patient.id}`),
-                fetch(`http://localhost:8080/api/v1/clinical/conditions/patient/${patient.id}`),
-                fetch(`http://localhost:8080/api/v1/clinical/encounters/patient/${patient.id}`)
+                fetch(`http://localhost:8080/api/v1/clinical/observations/patient/${patientFhirId}`),
+                fetch(`http://localhost:8080/api/v1/clinical/conditions/patient/${patientFhirId}`),
+                fetch(`http://localhost:8080/api/v1/clinical/encounters/patient/${patientFhirId}`)
             ]);
 
-            if (obsRes.ok) setObservations(await obsRes.json());
-            if (condRes.ok) setConditions(await condRes.json());
-            if (encRes.ok) setEncounters(await encRes.json());
+            if (obsRes.ok) {
+                const obs = await obsRes.json();
+                console.log('Observations hämtade:', obs.length);
+                setObservations(obs);
+            } else {
+                console.error('Kunde inte hämta observations, status:', obsRes.status);
+            }
+
+            if (condRes.ok) {
+                const cond = await condRes.json();
+                console.log('Conditions hämtade:', cond.length);
+                setConditions(cond);
+            } else {
+                console.error('Kunde inte hämta conditions, status:', condRes.status);
+            }
+
+            if (encRes.ok) {
+                const enc = await encRes.json();
+                console.log('Encounters hämtade:', enc.length);
+                setEncounters(enc);
+            } else {
+                console.error('Kunde inte hämta encounters, status:', encRes.status);
+            }
         } catch (error) {
             console.error('Fel vid hämtning av patientdata:', error);
         }
@@ -452,7 +479,7 @@ function PatientDetails({ patient, practitionerId, onBack }) {
                             <li key={obs.id} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
                                 {obs.description}
                                 <span style={{ color: '#666', fontSize: '12px', marginLeft: '10px' }}>
-                                    ({formatDate(obs.effectiveDateTime)})
+                                    ({new Date(obs.effectiveDateTime).toLocaleString()})
                                 </span>
                             </li>
                         ))}
@@ -502,7 +529,7 @@ function PatientDetails({ patient, practitionerId, onBack }) {
                             <li key={cond.id} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
                                 {cond.description}
                                 <span style={{ color: '#666', fontSize: '12px', marginLeft: '10px' }}>
-                                    ({formatDateOnly(cond.assertedDate)})
+                                    ({new Date(cond.assertedDate).toLocaleDateString()})
                                 </span>
                             </li>
                         ))}
@@ -549,8 +576,8 @@ function PatientDetails({ patient, practitionerId, onBack }) {
                     <ul>
                         {encounters.map(enc => (
                             <li key={enc.id} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
-                                Besök: {formatDate(enc.startTime)}
-                                {enc.endTime && ` - ${formatDate(enc.endTime)}`}
+                                Besök: {new Date(enc.startTime).toLocaleString()}
+                                {enc.endTime && ` - ${new Date(enc.endTime).toLocaleString()}`}
                             </li>
                         ))}
                     </ul>

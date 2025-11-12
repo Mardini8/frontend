@@ -42,20 +42,56 @@ function PatientDashboard({ user, onLogout }) {
     const fetchPatientData = async () => {
         setLoading(true);
         try {
-            const patientRes = await fetch(`${API_URL}/patients/${patientId}`);
-            if (patientRes.ok) {
-                setPatientInfo(await patientRes.json());
+            console.log('Hämtar data för patient med FHIR UUID:', patientId);
+
+            // OBS: patientId är nu FHIR UUID (socialSecurityNumber), inte numeriskt ID
+            // Vi måste söka efter patient med denna UUID
+
+            // Först, hämta alla patienter och hitta rätt via UUID
+            const allPatientsRes = await fetch(`${API_URL}/patients`);
+            if (allPatientsRes.ok) {
+                const allPatients = await allPatientsRes.json();
+                const patient = allPatients.find(p => p.socialSecurityNumber === patientId);
+
+                if (patient) {
+                    setPatientInfo(patient);
+                    console.log('Patient hämtad från HAPI:', patient);
+
+                    const [obsRes, condRes, encRes] = await Promise.all([
+                        fetch(`${API_URL}/v1/clinical/observations/patient/${patientId}`),
+                        fetch(`${API_URL}/v1/clinical/conditions/patient/${patientId}`),
+                        fetch(`${API_URL}/v1/clinical/encounters/patient/${patientId}`)
+                    ]);
+
+                    if (obsRes.ok) {
+                        const obs = await obsRes.json();
+                        setObservations(obs);
+                        console.log('Observations hämtade:', obs.length);
+                    } else {
+                        console.error('Kunde inte hämta observations, status:', obsRes.status);
+                    }
+
+                    if (condRes.ok) {
+                        const cond = await condRes.json();
+                        setConditions(cond);
+                        console.log('Conditions hämtade:', cond.length);
+                    } else {
+                        console.error('Kunde inte hämta conditions, status:', condRes.status);
+                    }
+
+                    if (encRes.ok) {
+                        const enc = await encRes.json();
+                        setEncounters(enc);
+                        console.log('Encounters hämtade:', enc.length);
+                    } else {
+                        console.error('Kunde inte hämta encounters, status:', encRes.status);
+                    }
+                } else {
+                    console.error('Kunde inte hitta patient med UUID:', patientId);
+                }
+            } else {
+                console.error('Kunde inte hämta patienter, status:', allPatientsRes.status);
             }
-
-            const [obsRes, condRes, encRes] = await Promise.all([
-                fetch(`${API_URL}/v1/clinical/observations/patient/${patientId}`),
-                fetch(`${API_URL}/v1/clinical/conditions/patient/${patientId}`),
-                fetch(`${API_URL}/v1/clinical/encounters/patient/${patientId}`)
-            ]);
-
-            if (obsRes.ok) setObservations(await obsRes.json());
-            if (condRes.ok) setConditions(await condRes.json());
-            if (encRes.ok) setEncounters(await encRes.json());
 
         } catch (error) {
             console.error('Fel vid hämtning av patientdata:', error);
