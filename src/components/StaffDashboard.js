@@ -220,7 +220,7 @@ function StaffPatientDetails({ patient, practitionerPersonnummer, onBack }) {
         description: '',
         value: '',
         unit: '',
-        effectiveDateTime: new Date().toISOString().slice(0, 16)
+        effectiveDate: new Date().toISOString().slice(0, 10)
     });
 
     const [newCondition, setNewCondition] = useState({
@@ -259,11 +259,11 @@ function StaffPatientDetails({ patient, practitionerPersonnummer, onBack }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     patientPersonnummer: patient.socialSecurityNumber,
-                    performerPersonnummer: practitionerPersonnummer,
+                    performerPersonnummer: null,
                     description: newObservation.description,
                     value: newObservation.value,
                     unit: newObservation.unit,
-                    effectiveDateTime: newObservation.effectiveDateTime
+                    effectiveDate: newObservation.effectiveDate
                 })
             });
 
@@ -274,7 +274,7 @@ function StaffPatientDetails({ patient, practitionerPersonnummer, onBack }) {
                     description: '',
                     value: '',
                     unit: '',
-                    effectiveDateTime: new Date().toISOString().slice(0, 16)
+                    effectiveDate: new Date().toISOString().slice(0, 10)
                 });
             } else {
                 alert('Fel vid skapande av observation');
@@ -323,7 +323,7 @@ function StaffPatientDetails({ patient, practitionerPersonnummer, onBack }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     patientPersonnummer: patient.socialSecurityNumber,
-                    practitionerPersonnummer: practitionerPersonnummer,
+                    practitionerPersonnummer: null,
                     startTime: newEncounter.startTime,
                     endTime: newEncounter.endTime || null
                 })
@@ -439,12 +439,12 @@ function StaffPatientDetails({ patient, practitionerPersonnummer, onBack }) {
                             />
                         </label>
                         <label>
-                            Datum och tid:
+                            Datum:
                             <input
-                                type="datetime-local"
+                                type="date"
                                 style={styles.input}
-                                value={newObservation.effectiveDateTime}
-                                onChange={(e) => setNewObservation({...newObservation, effectiveDateTime: e.target.value})}
+                                value={newObservation.effectiveDate}
+                                onChange={(e) => setNewObservation({...newObservation, effectiveDate: e.target.value})}
                                 required
                             />
                         </label>
