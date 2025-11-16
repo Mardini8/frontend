@@ -92,7 +92,14 @@ function Register({ onRegisterSuccess, onBackToLogin }) {
                 }, 2000);
             } else {
                 const errorData = await userResponse.text();
-                setError(errorData || 'Registrering misslyckades');
+                // Visa tydligt felmeddelande om personen redan är registrerad
+                if (errorData.includes('already registered')) {
+                    setError('Denna person har redan ett användarkonto. Välj en annan person.');
+                } else if (errorData.includes('Username taken')) {
+                    setError('Användarnamnet är upptaget. Välj ett annat användarnamn.');
+                } else {
+                    setError(errorData || 'Registrering misslyckades');
+                }
             }
         } catch (err) {
             setError(err.message || 'Kunde inte ansluta till servern');

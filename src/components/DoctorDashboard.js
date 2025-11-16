@@ -175,7 +175,6 @@ function DoctorDashboard({ user, onLogout }) {
                             <table style={styles.table}>
                                 <thead>
                                 <tr>
-                                    <th style={styles.th}>ID</th>
                                     <th style={styles.th}>Förnamn</th>
                                     <th style={styles.th}>Efternamn</th>
                                     <th style={styles.th}>Personnummer</th>
@@ -184,8 +183,7 @@ function DoctorDashboard({ user, onLogout }) {
                                 </thead>
                                 <tbody>
                                 {patients.map(patient => (
-                                    <tr key={patient.id}>
-                                        <td style={styles.td}>{patient.id}</td>
+                                    <tr key={patient.socialSecurityNumber}>
                                         <td style={styles.td}>{patient.firstName}</td>
                                         <td style={styles.td}>{patient.lastName}</td>
                                         <td style={styles.td}>{patient.socialSecurityNumber}</td>
@@ -208,7 +206,7 @@ function DoctorDashboard({ user, onLogout }) {
                 {activeTab === 'patient-details' && selectedPatient && (
                     <PatientDetails
                         patient={selectedPatient}
-                        practitionerId={user.foreignId}
+                        practitionerPersonnummer={user.foreignId}
                         onBack={() => setActiveTab('patients')}
                     />
                 )}
@@ -216,7 +214,7 @@ function DoctorDashboard({ user, onLogout }) {
                 {activeTab === 'messages' && (
                     <div style={styles.card}>
                         <h2>Meddelanden</h2>
-                        <MessagingSystem currentUser={user} patientId={null} />
+                        <MessagingSystem currentUser={user} patientPersonnummer={null} />
                     </div>
                 )}
             </div>
@@ -224,7 +222,7 @@ function DoctorDashboard({ user, onLogout }) {
     );
 }
 
-function PatientDetails({ patient, practitionerId, onBack }) {
+function PatientDetails({ patient, practitionerPersonnummer, onBack }) {
     const [observations, setObservations] = useState([]);
     const [conditions, setConditions] = useState([]);
     const [encounters, setEncounters] = useState([]);
@@ -235,6 +233,8 @@ function PatientDetails({ patient, practitionerId, onBack }) {
     // Formulärdata
     const [newObservation, setNewObservation] = useState({
         description: '',
+        value: '',
+        unit: '',
         effectiveDateTime: new Date().toISOString().slice(0, 16)
     });
 
@@ -254,40 +254,25 @@ function PatientDetails({ patient, practitionerId, onBack }) {
 
     const fetchPatientData = async () => {
         try {
-            // Använd socialSecurityNumber som innehåller FHIR UUID
-            // T.ex. "dd256214-a911-bbc9-bc56-2976d2336c93"
-            const patientFhirId = patient.socialSecurityNumber;
-
-            console.log('Hämtar data för patient FHIR ID:', patientFhirId);
+            const patientPersonnummer = patient.socialSecurityNumber;
 
             const [obsRes, condRes, encRes] = await Promise.all([
-                fetch(`http://localhost:8080/api/v1/clinical/observations/patient/${patientFhirId}`),
-                fetch(`http://localhost:8080/api/v1/clinical/conditions/patient/${patientFhirId}`),
-                fetch(`http://localhost:8080/api/v1/clinical/encounters/patient/${patientFhirId}`)
+                fetch(`http://localhost:8080/api/v1/clinical/observations/patient/${patientPersonnummer}`),
+                fetch(`http://localhost:8080/api/v1/clinical/conditions/patient/${patientPersonnummer}`),
+                fetch(`http://localhost:8080/api/v1/clinical/encounters/patient/${patientPersonnummer}`)
             ]);
 
             if (obsRes.ok) {
                 const obs = await obsRes.json();
-                console.log('Observations hämtade:', obs.length);
                 setObservations(obs);
-            } else {
-                console.error('Kunde inte hämta observations, status:', obsRes.status);
             }
-
             if (condRes.ok) {
                 const cond = await condRes.json();
-                console.log('Conditions hämtade:', cond.length);
                 setConditions(cond);
-            } else {
-                console.error('Kunde inte hämta conditions, status:', condRes.status);
             }
-
             if (encRes.ok) {
                 const enc = await encRes.json();
-                console.log('Encounters hämtade:', enc.length);
                 setEncounters(enc);
-            } else {
-                console.error('Kunde inte hämta encounters, status:', encRes.status);
             }
         } catch (error) {
             console.error('Fel vid hämtning av patientdata:', error);
@@ -297,31 +282,41 @@ function PatientDetails({ patient, practitionerId, onBack }) {
     const handleAddObservation = async (e) => {
         e.preventDefault();
         try {
+            // Konvertera datetime-local format till rätt format för backend
+            // Från: "2025-11-13T08:59" Till: "2025-11-13T08:59"
+            const formattedDateTime = newObservation.effectiveDateTime;
+
             const response = await fetch('http://localhost:8080/api/v1/clinical/observations', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    patientId: patient.id,
-                    performerId: practitionerId,
+                    patientPersonnummer: patient.socialSecurityNumber,
+                    performerPersonnummer: practitionerPersonnummer,
                     description: newObservation.description,
-                    effectiveDateTime: newObservation.effectiveDateTime
+                    value: newObservation.value,
+                    unit: newObservation.unit,
+                    effectiveDateTime: formattedDateTime
                 })
             });
 
             if (response.ok) {
-                alert('Observation skapad!');
+                alert('Observation skapad i HAPI FHIR!');
                 setShowAddObservation(false);
                 setNewObservation({
                     description: '',
+                    value: '',
+                    unit: '',
                     effectiveDateTime: new Date().toISOString().slice(0, 16)
                 });
                 fetchPatientData();
             } else {
-                alert('Fel vid skapande av observation');
+                const errorText = await response.text();
+                console.error('Fel från server:', errorText);
+                alert('Fel vid skapande av observation: ' + errorText);
             }
         } catch (error) {
             console.error('Fel vid skapande av observation:', error);
-            alert('Kunde inte skapa observation');
+            alert('Kunde inte skapa observation: ' + error.message);
         }
     };
 
@@ -332,15 +327,15 @@ function PatientDetails({ patient, practitionerId, onBack }) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    patientId: patient.id,
-                    practitionerId: practitionerId,
+                    patientPersonnummer: patient.socialSecurityNumber,
+                    practitionerPersonnummer: practitionerPersonnummer,
                     description: newCondition.description,
                     assertedDate: newCondition.assertedDate
                 })
             });
 
             if (response.ok) {
-                alert('Diagnos skapad!');
+                alert('Diagnos skapad i HAPI FHIR!');
                 setShowAddCondition(false);
                 setNewCondition({
                     description: '',
@@ -348,11 +343,13 @@ function PatientDetails({ patient, practitionerId, onBack }) {
                 });
                 fetchPatientData();
             } else {
-                alert('Fel vid skapande av diagnos');
+                const errorText = await response.text();
+                console.error('Fel från server:', errorText);
+                alert('Fel vid skapande av diagnos: ' + errorText);
             }
         } catch (error) {
             console.error('Fel vid skapande av diagnos:', error);
-            alert('Kunde inte skapa diagnos');
+            alert('Kunde inte skapa diagnos: ' + error.message);
         }
     };
 
@@ -363,15 +360,15 @@ function PatientDetails({ patient, practitionerId, onBack }) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    patientId: patient.id,
-                    practitionerId: practitionerId,
+                    patientPersonnummer: patient.socialSecurityNumber,
+                    practitionerPersonnummer: practitionerPersonnummer,
                     startTime: newEncounter.startTime,
                     endTime: newEncounter.endTime || null
                 })
             });
 
             if (response.ok) {
-                alert('Besök skapat!');
+                alert('Besök skapat i HAPI FHIR!');
                 setShowAddEncounter(false);
                 setNewEncounter({
                     startTime: new Date().toISOString().slice(0, 16),
@@ -379,11 +376,13 @@ function PatientDetails({ patient, practitionerId, onBack }) {
                 });
                 fetchPatientData();
             } else {
-                alert('Fel vid skapande av besök');
+                const errorText = await response.text();
+                console.error('Fel från server:', errorText);
+                alert('Fel vid skapande av besök: ' + errorText);
             }
         } catch (error) {
             console.error('Fel vid skapande av besök:', error);
-            alert('Kunde inte skapa besök');
+            alert('Kunde inte skapa besök: ' + error.message);
         }
     };
 
@@ -455,6 +454,26 @@ function PatientDetails({ patient, practitionerId, onBack }) {
                                 onChange={(e) => setNewObservation({...newObservation, description: e.target.value})}
                                 placeholder="Beskriv observationen"
                                 required
+                            />
+                        </label>
+                        <label>
+                            Värde (valfritt):
+                            <input
+                                type="text"
+                                style={styles.input}
+                                value={newObservation.value}
+                                onChange={(e) => setNewObservation({...newObservation, value: e.target.value})}
+                                placeholder="T.ex. 120"
+                            />
+                        </label>
+                        <label>
+                            Enhet (valfritt):
+                            <input
+                                type="text"
+                                style={styles.input}
+                                value={newObservation.unit}
+                                onChange={(e) => setNewObservation({...newObservation, unit: e.target.value})}
+                                placeholder="T.ex. mmHg"
                             />
                         </label>
                         <label>

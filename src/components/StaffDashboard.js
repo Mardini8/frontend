@@ -3,28 +3,6 @@ import MessagingSystem from './MessagingSystem';
 
 const API_URL = 'http://localhost:8080/api';
 
-// Formatera datum till europeiskt format: DD/MM/YYYY HH:MM
-const formatDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
-};
-
-// Formatera endast datum: DD/MM/YYYY
-const formatDateOnly = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
-};
-
 function StaffDashboard({ user, onLogout }) {
     const [activeTab, setActiveTab] = useState('patients');
     const [patients, setPatients] = useState([]);
@@ -176,7 +154,6 @@ function StaffDashboard({ user, onLogout }) {
                             <table style={styles.table}>
                                 <thead>
                                 <tr>
-                                    <th style={styles.th}>ID</th>
                                     <th style={styles.th}>Förnamn</th>
                                     <th style={styles.th}>Efternamn</th>
                                     <th style={styles.th}>Personnummer</th>
@@ -185,8 +162,7 @@ function StaffDashboard({ user, onLogout }) {
                                 </thead>
                                 <tbody>
                                 {patients.map(patient => (
-                                    <tr key={patient.id}>
-                                        <td style={styles.td}>{patient.id}</td>
+                                    <tr key={patient.socialSecurityNumber}>
                                         <td style={styles.td}>{patient.firstName}</td>
                                         <td style={styles.td}>{patient.lastName}</td>
                                         <td style={styles.td}>{patient.socialSecurityNumber}</td>
@@ -217,7 +193,7 @@ function StaffDashboard({ user, onLogout }) {
                 {activeTab === 'patient-details' && selectedPatient && (
                     <StaffPatientDetails
                         patient={selectedPatient}
-                        practitionerId={user.foreignId}
+                        practitionerPersonnummer={user.foreignId}
                         onBack={() => setActiveTab('patients')}
                     />
                 )}
@@ -225,7 +201,7 @@ function StaffDashboard({ user, onLogout }) {
                 {activeTab === 'messages' && (
                     <div style={styles.card}>
                         <h2>Meddelanden</h2>
-                        <MessagingSystem currentUser={user} patientId={null} />
+                        <MessagingSystem currentUser={user} patientPersonnummer={null} />
                     </div>
                 )}
             </div>
@@ -233,9 +209,7 @@ function StaffDashboard({ user, onLogout }) {
     );
 }
 
-function StaffPatientDetails({ patient, practitionerId, onBack }) {
-    const [observations, setObservations] = useState([]);
-    const [conditions, setConditions] = useState([]);
+function StaffPatientDetails({ patient, practitionerPersonnummer, onBack }) {
     const [encounters, setEncounters] = useState([]);
     const [showAddObservation, setShowAddObservation] = useState(false);
     const [showAddCondition, setShowAddCondition] = useState(false);
@@ -244,6 +218,8 @@ function StaffPatientDetails({ patient, practitionerId, onBack }) {
     // Formulärdata
     const [newObservation, setNewObservation] = useState({
         description: '',
+        value: '',
+        unit: '',
         effectiveDateTime: new Date().toISOString().slice(0, 16)
     });
 
@@ -258,39 +234,20 @@ function StaffPatientDetails({ patient, practitionerId, onBack }) {
     });
 
     useEffect(() => {
-        fetchPatientData();
+        fetchEncounters();
     }, [patient.socialSecurityNumber]);
 
-    const fetchPatientData = async () => {
+    const fetchEncounters = async () => {
         try {
-            // Använd socialSecurityNumber som innehåller FHIR UUID
-            const patientFhirId = patient.socialSecurityNumber;
+            const patientPersonnummer = patient.socialSecurityNumber;
+            const response = await fetch(`http://localhost:8080/api/v1/clinical/encounters/patient/${patientPersonnummer}`);
 
-            console.log('Hämtar data för patient FHIR ID:', patientFhirId);
-
-            const [obsRes, condRes, encRes] = await Promise.all([
-                fetch(`http://localhost:8080/api/v1/clinical/observations/patient/${patientFhirId}`),
-                fetch(`http://localhost:8080/api/v1/clinical/conditions/patient/${patientFhirId}`),
-                fetch(`http://localhost:8080/api/v1/clinical/encounters/patient/${patientFhirId}`)
-            ]);
-
-            if (obsRes.ok) {
-                const obs = await obsRes.json();
-                console.log('Observations hämtade:', obs.length);
-                setObservations(obs);
-            }
-            if (condRes.ok) {
-                const cond = await condRes.json();
-                console.log('Conditions hämtade:', cond.length);
-                setConditions(cond);
-            }
-            if (encRes.ok) {
-                const enc = await encRes.json();
-                console.log('Encounters hämtade:', enc.length);
+            if (response.ok) {
+                const enc = await response.json();
                 setEncounters(enc);
             }
         } catch (error) {
-            console.error('Fel vid hämtning av patientdata:', error);
+            console.error('Fel vid hämtning av encounters:', error);
         }
     };
 
@@ -301,21 +258,24 @@ function StaffPatientDetails({ patient, practitionerId, onBack }) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    patientId: patient.id,
-                    performerId: practitionerId,
+                    patientPersonnummer: patient.socialSecurityNumber,
+                    performerPersonnummer: practitionerPersonnummer,
                     description: newObservation.description,
+                    value: newObservation.value,
+                    unit: newObservation.unit,
                     effectiveDateTime: newObservation.effectiveDateTime
                 })
             });
 
             if (response.ok) {
-                alert('Observation skapad!');
+                alert('Observation skapad i HAPI FHIR!');
                 setShowAddObservation(false);
                 setNewObservation({
                     description: '',
+                    value: '',
+                    unit: '',
                     effectiveDateTime: new Date().toISOString().slice(0, 16)
                 });
-                fetchPatientData();
             } else {
                 alert('Fel vid skapande av observation');
             }
@@ -332,21 +292,20 @@ function StaffPatientDetails({ patient, practitionerId, onBack }) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    patientId: patient.id,
-                    practitionerId: practitionerId,
+                    patientPersonnummer: patient.socialSecurityNumber,
+                    practitionerPersonnummer: practitionerPersonnummer,
                     description: newCondition.description,
                     assertedDate: newCondition.assertedDate
                 })
             });
 
             if (response.ok) {
-                alert('Diagnos skapad!');
+                alert('Diagnos skapad i HAPI FHIR!');
                 setShowAddCondition(false);
                 setNewCondition({
                     description: '',
                     assertedDate: new Date().toISOString().slice(0, 10)
                 });
-                fetchPatientData();
             } else {
                 alert('Fel vid skapande av diagnos');
             }
@@ -363,21 +322,21 @@ function StaffPatientDetails({ patient, practitionerId, onBack }) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    patientId: patient.id,
-                    practitionerId: practitionerId,
+                    patientPersonnummer: patient.socialSecurityNumber,
+                    practitionerPersonnummer: practitionerPersonnummer,
                     startTime: newEncounter.startTime,
                     endTime: newEncounter.endTime || null
                 })
             });
 
             if (response.ok) {
-                alert('Besök skapat!');
+                alert('Besök skapat i HAPI FHIR!');
                 setShowAddEncounter(false);
                 setNewEncounter({
                     startTime: new Date().toISOString().slice(0, 16),
                     endTime: ''
                 });
-                fetchPatientData();
+                fetchEncounters(); // Uppdatera listan
             } else {
                 alert('Fel vid skapande av besök');
             }
@@ -435,13 +394,13 @@ function StaffPatientDetails({ patient, practitionerId, onBack }) {
                 <p><strong>Namn:</strong> {patient.firstName} {patient.lastName}</p>
                 <p><strong>Personnummer:</strong> {patient.socialSecurityNumber}</p>
                 <p style={{ color: '#666', fontSize: '14px', marginTop: '10px' }}>
-                    Som personal kan du registrera observationer, diagnoser och besök
+                    Som personal kan du registrera observationer, diagnoser och besök. Du kan endast se listan över besök.
                 </p>
             </div>
 
-            {/* OBSERVATIONER */}
+            {/* OBSERVATIONER - Endast skapa */}
             <div style={styles.card}>
-                <h3>Observationer</h3>
+                <h3>Skapa Observation</h3>
                 <button style={styles.button} onClick={() => setShowAddObservation(!showAddObservation)}>
                     {showAddObservation ? 'Avbryt' : '+ Lägg till observation'}
                 </button>
@@ -460,6 +419,26 @@ function StaffPatientDetails({ patient, practitionerId, onBack }) {
                             />
                         </label>
                         <label>
+                            Värde (valfritt):
+                            <input
+                                type="text"
+                                style={styles.input}
+                                value={newObservation.value}
+                                onChange={(e) => setNewObservation({...newObservation, value: e.target.value})}
+                                placeholder="T.ex. 120"
+                            />
+                        </label>
+                        <label>
+                            Enhet (valfritt):
+                            <input
+                                type="text"
+                                style={styles.input}
+                                value={newObservation.unit}
+                                onChange={(e) => setNewObservation({...newObservation, unit: e.target.value})}
+                                placeholder="T.ex. mmHg"
+                            />
+                        </label>
+                        <label>
                             Datum och tid:
                             <input
                                 type="datetime-local"
@@ -472,26 +451,11 @@ function StaffPatientDetails({ patient, practitionerId, onBack }) {
                         <button type="submit" style={styles.button}>Spara observation</button>
                     </form>
                 )}
-
-                {observations.length === 0 ? (
-                    <p>Inga observationer registrerade</p>
-                ) : (
-                    <ul>
-                        {observations.map(obs => (
-                            <li key={obs.id} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
-                                {obs.description}
-                                <span style={{ color: '#666', fontSize: '12px', marginLeft: '10px' }}>
-                                    ({new Date(obs.effectiveDateTime).toLocaleString()})
-                                </span>
-                            </li>
-                        ))}
-                    </ul>
-                )}
             </div>
 
-            {/* DIAGNOSER */}
+            {/* DIAGNOSER - Endast skapa */}
             <div style={styles.card}>
-                <h3>Diagnoser</h3>
+                <h3>Skapa Diagnos</h3>
                 <button style={styles.button} onClick={() => setShowAddCondition(!showAddCondition)}>
                     {showAddCondition ? 'Avbryt' : '+ Lägg till diagnos'}
                 </button>
@@ -522,24 +486,9 @@ function StaffPatientDetails({ patient, practitionerId, onBack }) {
                         <button type="submit" style={styles.button}>Spara diagnos</button>
                     </form>
                 )}
-
-                {conditions.length === 0 ? (
-                    <p>Inga diagnoser registrerade</p>
-                ) : (
-                    <ul>
-                        {conditions.map(cond => (
-                            <li key={cond.id} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
-                                {cond.description}
-                                <span style={{ color: '#666', fontSize: '12px', marginLeft: '10px' }}>
-                                    ({new Date(cond.assertedDate).toLocaleDateString()})
-                                </span>
-                            </li>
-                        ))}
-                    </ul>
-                )}
             </div>
 
-            {/* BESÖK */}
+            {/* BESÖK - Kan skapa OCH se lista */}
             <div style={styles.card}>
                 <h3>Besök</h3>
                 <button style={styles.button} onClick={() => setShowAddEncounter(!showAddEncounter)}>
@@ -572,6 +521,7 @@ function StaffPatientDetails({ patient, practitionerId, onBack }) {
                     </form>
                 )}
 
+                <h4 style={{ marginTop: '20px' }}>Registrerade besök:</h4>
                 {encounters.length === 0 ? (
                     <p>Inga besök registrerade</p>
                 ) : (
