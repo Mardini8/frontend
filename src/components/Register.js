@@ -10,7 +10,6 @@ function Register({ onRegisterSuccess, onBackToLogin }) {
     const [role, setRole] = useState('PATIENT');
     const [foreignId, setForeignId] = useState('');
 
-    // Listor från HAPI
     const [patients, setPatients] = useState([]);
     const [practitioners, setPractitioners] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -18,7 +17,6 @@ function Register({ onRegisterSuccess, onBackToLogin }) {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
 
-    // Hämta patienter/practitioners när roll ändras
     useEffect(() => {
         if (role === 'PATIENT') {
             fetchPatients();
@@ -60,19 +58,16 @@ function Register({ onRegisterSuccess, onBackToLogin }) {
         setError('');
         setLoading(true);
 
-        // Validera att en patient/practitioner är vald
         if (!foreignId) {
             setError('Du måste välja en person att koppla kontot till');
             setLoading(false);
             return;
         }
 
-        // foreignId är redan personnummer (socialSecurityNumber) från select
         const fhirUuid = foreignId;
         console.log('Skapar användare med FHIR UUID:', fhirUuid);
 
         try {
-            // Skapa User med FHIR UUID som foreignId
             const userResponse = await fetch(`${AUTH_URL}/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -81,7 +76,7 @@ function Register({ onRegisterSuccess, onBackToLogin }) {
                     email,
                     password,
                     role,
-                    foreignId: fhirUuid  // FHIR UUID från socialSecurityNumber
+                    foreignId: fhirUuid
                 })
             });
 
@@ -92,7 +87,6 @@ function Register({ onRegisterSuccess, onBackToLogin }) {
                 }, 2000);
             } else {
                 const errorData = await userResponse.text();
-                // Visa tydligt felmeddelande om personen redan är registrerad
                 if (errorData.includes('already registered')) {
                     setError('Denna person har redan ett användarkonto. Välj en annan person.');
                 } else if (errorData.includes('Username taken')) {
@@ -125,7 +119,6 @@ function Register({ onRegisterSuccess, onBackToLogin }) {
         );
     }
 
-    // Bestäm vilken lista som ska visas
     const availablePersons = role === 'PATIENT' ? patients : practitioners;
     const personLabel = role === 'PATIENT' ? 'Patient' : 'Vårdpersonal';
 
@@ -154,7 +147,7 @@ function Register({ onRegisterSuccess, onBackToLogin }) {
                         value={role}
                         onChange={(e) => {
                             setRole(e.target.value);
-                            setForeignId(''); // Återställ val när roll ändras
+                            setForeignId('');
                         }}
                         style={{
                             width: '100%',

@@ -12,9 +12,7 @@ function App() {
         setCurrentUser(null);
     };
 
-    // Om användaren är inloggad, visa rätt dashboard
     if (currentUser) {
-        // DOCTOR och STAFF använder samma PractitionerDashboard
         if (currentUser.role === 'DOCTOR' || currentUser.role === 'STAFF') {
             return <PractitionerDashboard user={currentUser} onLogout={handleLogout} />;
         } else if (currentUser.role === 'PATIENT') {
@@ -22,7 +20,6 @@ function App() {
         }
     }
 
-    // Annars visa login/register
     return (
         <div className="App" style={{
             minHeight: '100vh',

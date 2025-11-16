@@ -3,35 +3,12 @@ import MessagingSystem from './MessagingSystem';
 
 const API_URL = 'http://localhost:8080/api';
 
-// Formatera datum till europeiskt format: DD/MM/YYYY HH:MM
-const formatDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
-};
-
-// Formatera endast datum: DD/MM/YYYY
-const formatDateOnly = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
-};
-
 function PractitionerDashboard({ user, onLogout }) {
     const [activeTab, setActiveTab] = useState('patients');
     const [patients, setPatients] = useState([]);
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [loading, setLoading] = useState(false);
 
-    // Kontrollera om användaren är läkare (har fullständig åtkomst)
     const isDoctor = user.role === 'DOCTOR';
 
     useEffect(() => {
@@ -238,7 +215,6 @@ function PatientDetails({ patient, practitionerPersonnummer, isDoctor, onBack })
     const [showAddCondition, setShowAddCondition] = useState(false);
     const [showAddEncounter, setShowAddEncounter] = useState(false);
 
-    // Formulärdata
     const [newObservation, setNewObservation] = useState({
         description: '',
         value: '',

@@ -3,28 +3,6 @@ import MessagingSystem from './MessagingSystem';
 
 const API_URL = 'http://localhost:8080/api';
 
-// Formatera datum till europeiskt format: DD/MM/YYYY HH:MM
-const formatDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
-};
-
-// Formatera endast datum: DD/MM/YYYY
-const formatDateOnly = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
-};
-
 function PatientDashboard({ user, onLogout }) {
     const [activeTab, setActiveTab] = useState('overview');
     const [patientInfo, setPatientInfo] = useState(null);
@@ -44,10 +22,6 @@ function PatientDashboard({ user, onLogout }) {
         try {
             console.log('Hämtar data för patient med FHIR UUID:', patientId);
 
-            // OBS: patientId är nu FHIR UUID (socialSecurityNumber), inte numeriskt ID
-            // Vi måste söka efter patient med denna UUID
-
-            // Först, hämta alla patienter och hitta rätt via UUID
             const allPatientsRes = await fetch(`${API_URL}/patients`);
             if (allPatientsRes.ok) {
                 const allPatients = await allPatientsRes.json();
@@ -227,7 +201,7 @@ function PatientDashboard({ user, onLogout }) {
                                 </div>
                                 <div style={styles.infoRow}>
                                     <strong>Födelsedatum:</strong>
-                                    <span>{formatDateOnly(patientInfo.dateOfBirth)}</span>
+                                    <span>{patientInfo.dateOfBirth}</span>
                                 </div>
                             </div>
                         )}
@@ -249,7 +223,7 @@ function PatientDashboard({ user, onLogout }) {
                                         {observations.map(obs => (
                                             <tr key={obs.id}>
                                                 <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
-                                                    {formatDate(obs.effectiveDateTime)}
+                                                    {new Date(obs.effectiveDateTime).toLocaleString()}
                                                 </td>
                                                 <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}>{obs.description}</td>
                                             </tr>
@@ -277,7 +251,7 @@ function PatientDashboard({ user, onLogout }) {
                                         {conditions.map(cond => (
                                             <tr key={cond.id}>
                                                 <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
-                                                    {formatDateOnly(cond.assertedDate)}
+                                                    {new Date(cond.assertedDate).toLocaleDateString()}
                                                 </td>
                                                 <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}>{cond.description}</td>
                                             </tr>
@@ -305,10 +279,10 @@ function PatientDashboard({ user, onLogout }) {
                                         {encounters.map(enc => (
                                             <tr key={enc.id}>
                                                 <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
-                                                    {formatDate(enc.startTime)}
+                                                    {new Date(enc.startTime).toLocaleString()}
                                                 </td>
                                                 <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
-                                                    {enc.endTime ? formatDate(enc.endTime) : 'Pågående'}
+                                                    {enc.endTime ? new Date(enc.endTime).toLocaleString() : 'Pågående'}
                                                 </td>
                                             </tr>
                                         ))}

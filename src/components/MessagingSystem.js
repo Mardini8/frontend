@@ -14,7 +14,7 @@ function MessagingSystem({ currentUser, patientPersonnummer }) {
     const [patientNames, setPatientNames] = useState({});
     const [practitionerNames, setPractitionerNames] = useState({});
     const [patients, setPatients] = useState([]);
-    const [userIdToForeignId, setUserIdToForeignId] = useState({}); // NY: Mappar User ID -> Foreign ID
+    const [userIdToForeignId, setUserIdToForeignId] = useState({});
 
     useEffect(() => {
         fetchMessages();
@@ -25,18 +25,15 @@ function MessagingSystem({ currentUser, patientPersonnummer }) {
             fetchAllPatients();
         }
         fetchAllPractitionerNames();
-        fetchUserMappings(); // NY: Hämta User ID -> Foreign ID mappningar
+        fetchUserMappings();
     }, [currentUser, patientPersonnummer]);
 
-    // NY: Hämta alla User ID -> Foreign ID mappningar för practitioners
     const fetchUserMappings = async () => {
         try {
-            // Hämta alla practitioners från HAPI
             const practResponse = await fetch(`${API_URL}/practitioners`);
             if (practResponse.ok) {
                 const practitioners = await practResponse.json();
 
-                // För varje practitioner, försök hitta motsvarande user
                 const mappings = {};
                 for (const pract of practitioners) {
                     try {
@@ -47,7 +44,6 @@ function MessagingSystem({ currentUser, patientPersonnummer }) {
                             console.log(`Mapped User ID ${user.id} -> Practitioner UUID ${pract.socialSecurityNumber} (${pract.firstName} ${pract.lastName})`);
                         }
                     } catch (e) {
-                        // Ignorera om användaren inte finns
                     }
                 }
                 console.log('User ID -> Foreign ID mappings:', mappings);
@@ -93,7 +89,6 @@ function MessagingSystem({ currentUser, patientPersonnummer }) {
                 const practitioners = await response.json();
                 const names = {};
                 practitioners.forEach(p => {
-                    // ÄNDRAT: Använd socialSecurityNumber (UUID) istället för id
                     names[p.socialSecurityNumber] = `${p.firstName} ${p.lastName}`;
                 });
                 setPractitionerNames(names);
@@ -135,7 +130,6 @@ function MessagingSystem({ currentUser, patientPersonnummer }) {
                 allMessages = [...toMe, ...fromMe];
             }
 
-            // Sortera efter datum (nyaste först)
             allMessages.sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt));
             setMessages(allMessages);
         } catch (error) {
@@ -161,12 +155,10 @@ function MessagingSystem({ currentUser, patientPersonnummer }) {
         setReplyTo(message);
         setShowNewMessageForm(true);
 
-        // Sätt mottagare automatiskt beroende på vem som skickade
         if (currentUser.role === 'PATIENT') {
             setSelectedRecipient(message.fromUserId);
         }
 
-        // Scrolla till formuläret
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -205,7 +197,6 @@ function MessagingSystem({ currentUser, patientPersonnummer }) {
                     alert('Välj en patient');
                     return;
                 }
-                // Hitta patient user ID
                 const userResponse = await fetch(`${API_URL}/v1/auth/user-by-foreign/${selectedPatient}`);
                 if (!userResponse.ok) {
                     alert('Kunde inte hitta patient-användaren');
@@ -515,26 +506,19 @@ function MessagingSystem({ currentUser, patientPersonnummer }) {
                     messages.map(msg => {
                         const isSent = msg.fromUserId === currentUser.id;
 
-                        // Bestäm vilket namn som ska visas
                         let otherUserName;
                         if (isSent) {
-                            // Du har skickat meddelandet
                             if (currentUser.role === 'PATIENT') {
-                                // Du är patient, visa practitioner-namn
                                 const practForeignId = userIdToForeignId[msg.toUserId];
                                 otherUserName = practitionerNames[practForeignId] || 'Vårdpersonal';
                             } else {
-                                // Du är practitioner, visa patient-namn
                                 otherUserName = patientNames[msg.patientPersonnummer] || 'Patient';
                             }
                         } else {
-                            // Du har mottagit meddelandet
                             if (currentUser.role === 'PATIENT') {
-                                // Du är patient, visa practitioner-namn
                                 const practForeignId = userIdToForeignId[msg.fromUserId];
                                 otherUserName = practitionerNames[practForeignId] || 'Vårdpersonal';
                             } else {
-                                // Du är practitioner, visa patient-namn
                                 otherUserName = patientNames[msg.patientPersonnummer] || 'Patient';
                             }
                         }
