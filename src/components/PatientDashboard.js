@@ -215,28 +215,19 @@ function PatientDashboard({ user, onLogout }) {
                 ) : (
                     <>
                         {activeTab === 'overview' && patientInfo && (
-                            <div>
-                                <div style={styles.card}>
-                                    <h2>Min Information</h2>
-                                    <div style={styles.infoRow}>
-                                        <strong>Namn:</strong>
-                                        <span>{patientInfo.firstName} {patientInfo.lastName}</span>
-                                    </div>
-                                    <div style={styles.infoRow}>
-                                        <strong>Personnummer:</strong>
-                                        <span>{patientInfo.socialSecurityNumber}</span>
-                                    </div>
-                                    <div style={styles.infoRow}>
-                                        <strong>Födelsedatum:</strong>
-                                        <span>{formatDateOnly(patientInfo.dateOfBirth)}</span>
-                                    </div>
+                            <div style={styles.card}>
+                                <h2 style={{ marginBottom: '30px' }}>Min Information</h2>
+                                <div style={styles.infoRow}>
+                                    <strong>Namn:</strong>
+                                    <span>{patientInfo.firstName} {patientInfo.lastName}</span>
                                 </div>
-
-                                <div style={styles.card}>
-                                    <h3>Sammanfattning</h3>
-                                    <p><strong>Observationer:</strong> {observations.length} st</p>
-                                    <p><strong>Diagnoser:</strong> {conditions.length} st</p>
-                                    <p><strong>Besök:</strong> {encounters.length} st</p>
+                                <div style={styles.infoRow}>
+                                    <strong>Personnummer:</strong>
+                                    <span>{patientInfo.socialSecurityNumber}</span>
+                                </div>
+                                <div style={styles.infoRow}>
+                                    <strong>Födelsedatum:</strong>
+                                    <span>{formatDateOnly(patientInfo.dateOfBirth)}</span>
                                 </div>
                             </div>
                         )}

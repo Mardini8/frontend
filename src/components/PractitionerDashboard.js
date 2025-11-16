@@ -25,13 +25,15 @@ const formatDateOnly = (dateString) => {
     return `${day}/${month}/${year}`;
 };
 
-function DoctorDashboard({ user, onLogout }) {
+function PractitionerDashboard({ user, onLogout }) {
     const [activeTab, setActiveTab] = useState('patients');
     const [patients, setPatients] = useState([]);
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [loading, setLoading] = useState(false);
 
-    // Hämta alla patienter
+    // Kontrollera om användaren är läkare (har fullständig åtkomst)
+    const isDoctor = user.role === 'DOCTOR';
+
     useEffect(() => {
         if (activeTab === 'patients') {
             fetchPatients();
@@ -132,7 +134,7 @@ function DoctorDashboard({ user, onLogout }) {
                 <div>
                     <h1 style={{ margin: 0 }}>PatientSystem</h1>
                     <p style={{ margin: '5px 0 0 0', opacity: 0.9 }}>
-                        Inloggad som: {user.username} (Läkare)
+                        Inloggad som: {user.username} ({isDoctor ? 'Läkare' : 'Personal'})
                     </p>
                 </div>
                 <button
@@ -169,6 +171,11 @@ function DoctorDashboard({ user, onLogout }) {
                 {activeTab === 'patients' && (
                     <div style={styles.card}>
                         <h2>Patientlista</h2>
+                        {!isDoctor && (
+                            <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>
+                                Som personal kan du registrera klinisk data för patienter
+                            </p>
+                        )}
                         {loading ? (
                             <p>Laddar patienter...</p>
                         ) : (
@@ -192,7 +199,7 @@ function DoctorDashboard({ user, onLogout }) {
                                                 style={styles.button}
                                                 onClick={() => viewPatientDetails(patient)}
                                             >
-                                                Visa detaljer
+                                                {isDoctor ? 'Visa detaljer' : 'Registrera data'}
                                             </button>
                                         </td>
                                     </tr>
@@ -207,6 +214,7 @@ function DoctorDashboard({ user, onLogout }) {
                     <PatientDetails
                         patient={selectedPatient}
                         practitionerPersonnummer={user.foreignId}
+                        isDoctor={isDoctor}
                         onBack={() => setActiveTab('patients')}
                     />
                 )}
@@ -222,7 +230,7 @@ function DoctorDashboard({ user, onLogout }) {
     );
 }
 
-function PatientDetails({ patient, practitionerPersonnummer, onBack }) {
+function PatientDetails({ patient, practitionerPersonnummer, isDoctor, onBack }) {
     const [observations, setObservations] = useState([]);
     const [conditions, setConditions] = useState([]);
     const [encounters, setEncounters] = useState([]);
@@ -324,7 +332,7 @@ function PatientDetails({ patient, practitionerPersonnummer, onBack }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     patientPersonnummer: patient.socialSecurityNumber,
-                    practitionerPersonnummer: practitionerPersonnummer,
+                    practitionerPersonnummer: null,
                     description: newCondition.description,
                     assertedDate: newCondition.assertedDate
                 })
@@ -426,7 +434,7 @@ function PatientDetails({ patient, practitionerPersonnummer, onBack }) {
             <button style={styles.button} onClick={onBack}>← Tillbaka</button>
 
             <div style={styles.card}>
-                <h2>Patientinformation (Fullständig åtkomst som läkare)</h2>
+                <h2>Patientinformation {isDoctor ? '(Fullständig åtkomst som läkare)' : '(Personal - begränsad åtkomst)'}</h2>
                 <p><strong>Namn:</strong> {patient.firstName} {patient.lastName}</p>
                 <p><strong>Personnummer:</strong> {patient.socialSecurityNumber}</p>
                 <p><strong>Födelsedatum:</strong> {patient.dateOfBirth}</p>
@@ -486,19 +494,24 @@ function PatientDetails({ patient, practitionerPersonnummer, onBack }) {
                     </form>
                 )}
 
-                {observations.length === 0 ? (
-                    <p>Inga observationer registrerade</p>
-                ) : (
-                    <ul>
-                        {observations.map(obs => (
-                            <li key={obs.id} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
-                                {obs.description}
-                                <span style={{ color: '#666', fontSize: '12px', marginLeft: '10px' }}>
-                                    ({new Date(obs.effectiveDateTime).toLocaleString()})
-                                </span>
-                            </li>
-                        ))}
-                    </ul>
+                {/* VIKTIGT: LÄKARE ser listan, PERSONAL ser den INTE */}
+                {isDoctor && (
+                    <>
+                        {observations.length === 0 ? (
+                            <p>Inga observationer registrerade</p>
+                        ) : (
+                            <ul>
+                                {observations.map(obs => (
+                                    <li key={obs.id} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
+                                        {obs.description}
+                                        <span style={{ color: '#666', fontSize: '12px', marginLeft: '10px' }}>
+                                            ({new Date(obs.effectiveDateTime).toLocaleString()})
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </>
                 )}
             </div>
 
@@ -536,23 +549,28 @@ function PatientDetails({ patient, practitionerPersonnummer, onBack }) {
                     </form>
                 )}
 
-                {conditions.length === 0 ? (
-                    <p>Inga diagnoser registrerade</p>
-                ) : (
-                    <ul>
-                        {conditions.map(cond => (
-                            <li key={cond.id} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
-                                {cond.description}
-                                <span style={{ color: '#666', fontSize: '12px', marginLeft: '10px' }}>
-                                    ({new Date(cond.assertedDate).toLocaleDateString()})
-                                </span>
-                            </li>
-                        ))}
-                    </ul>
+                {/* VIKTIGT: LÄKARE ser listan, PERSONAL ser den INTE */}
+                {isDoctor && (
+                    <>
+                        {conditions.length === 0 ? (
+                            <p>Inga diagnoser registrerade</p>
+                        ) : (
+                            <ul>
+                                {conditions.map(cond => (
+                                    <li key={cond.id} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
+                                        {cond.description}
+                                        <span style={{ color: '#666', fontSize: '12px', marginLeft: '10px' }}>
+                                            ({new Date(cond.assertedDate).toLocaleDateString()})
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </>
                 )}
             </div>
 
-            {/* BESÖK */}
+            {/* BESÖK - Både läkare och personal kan se och skapa */}
             <div style={styles.card}>
                 <h3>Besök</h3>
                 <button style={styles.button} onClick={() => setShowAddEncounter(!showAddEncounter)}>
@@ -585,6 +603,7 @@ function PatientDetails({ patient, practitionerPersonnummer, onBack }) {
                     </form>
                 )}
 
+                {/* Både läkare och personal ser besök-listan */}
                 {encounters.length === 0 ? (
                     <p>Inga besök registrerade</p>
                 ) : (
@@ -602,4 +621,4 @@ function PatientDetails({ patient, practitionerPersonnummer, onBack }) {
     );
 }
 
-export default DoctorDashboard;
+export default PractitionerDashboard;

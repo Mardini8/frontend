@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import Login from './components/Login';
 import Register from './components/Register';
-import DoctorDashboard from './components/DoctorDashboard';
+import PractitionerDashboard from './components/PractitionerDashboard';
 import PatientDashboard from './components/PatientDashboard';
-import StaffDashboard from './components/StaffDashboard';
 
 function App() {
     const [currentUser, setCurrentUser] = useState(null);
@@ -15,12 +14,11 @@ function App() {
 
     // Om användaren är inloggad, visa rätt dashboard
     if (currentUser) {
-        if (currentUser.role === 'DOCTOR') {
-            return <DoctorDashboard user={currentUser} onLogout={handleLogout} />;
+        // DOCTOR och STAFF använder samma PractitionerDashboard
+        if (currentUser.role === 'DOCTOR' || currentUser.role === 'STAFF') {
+            return <PractitionerDashboard user={currentUser} onLogout={handleLogout} />;
         } else if (currentUser.role === 'PATIENT') {
             return <PatientDashboard user={currentUser} onLogout={handleLogout} />;
-        } else if (currentUser.role === 'STAFF') {
-            return <StaffDashboard user={currentUser} onLogout={handleLogout} />;
         }
     }
 
