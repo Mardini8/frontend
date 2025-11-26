@@ -40,6 +40,9 @@ function ImageGallery({ currentUser, patientPersonnummer }) {
             if (response.ok) {
                 const data = await response.json();
                 setImages(data.images || []);
+                console.log('Images loaded:', data.images?.length || 0);
+            } else {
+                console.error('Failed to fetch images:', response.status);
             }
         } catch (error) {
             console.error('Error fetching images:', error);
@@ -69,7 +72,11 @@ function ImageGallery({ currentUser, patientPersonnummer }) {
         const formData = new FormData();
         formData.append('image', uploadFile);
         formData.append('patientPersonnummer', patientPersonnummer);
-        formData.append('uploadedBy', currentUser.id);
+        formData.append('userId', currentUser.id);              // ✅ Fixed: userId instead of uploadedBy
+        formData.append('username', currentUser.username);       // ✅ Added: username for better tracking
+
+        console.log('Uploading image for patient:', patientPersonnummer);
+        console.log('User ID:', currentUser.id);
 
         try {
             const response = await fetch(`${API_CONFIG.IMAGE_SERVICE}/api/images/upload`, {
@@ -78,16 +85,20 @@ function ImageGallery({ currentUser, patientPersonnummer }) {
             });
 
             if (response.ok) {
+                const result = await response.json();
+                console.log('Upload successful:', result);
                 alert('Image uploaded successfully!');
                 setUploadFile(null);
                 setUploadPreview(null);
                 fetchImages();
             } else {
-                alert('Failed to upload image');
+                const errorData = await response.json();
+                console.error('Upload failed:', errorData);
+                alert(`Failed to upload image: ${errorData.error || 'Unknown error'}`);
             }
         } catch (error) {
             console.error('Upload error:', error);
-            alert('Error uploading image');
+            alert('Error uploading image: ' + error.message);
         }
     };
 
@@ -235,7 +246,8 @@ function ImageGallery({ currentUser, patientPersonnummer }) {
             const formData = new FormData();
             formData.append('image', blob, `edited-${editorImage.filename}`);
             formData.append('patientPersonnummer', patientPersonnummer);
-            formData.append('uploadedBy', currentUser.id);
+            formData.append('userId', currentUser.id);          // ✅ Fixed: userId
+            formData.append('username', currentUser.username);   // ✅ Fixed: username
             formData.append('originalImage', editorImage.filename);
 
             try {
@@ -249,11 +261,12 @@ function ImageGallery({ currentUser, patientPersonnummer }) {
                     setShowEditor(false);
                     fetchImages();
                 } else {
-                    alert('Failed to save edited image');
+                    const errorData = await response.json();
+                    alert(`Failed to save edited image: ${errorData.error || 'Unknown error'}`);
                 }
             } catch (error) {
                 console.error('Save error:', error);
-                alert('Error saving image');
+                alert('Error saving image: ' + error.message);
             }
         }, 'image/png');
     };
