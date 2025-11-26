@@ -14,7 +14,7 @@ function SearchPanel({ currentUser }) {
     const isPatient = currentUser.role === 'PATIENT';
 
     const handleSearch = async () => {
-        if (!searchQuery.trim() && searchType !== 'my-encounters') {
+        if (!searchQuery.trim() && searchType !== 'my-encounters' && searchType !== 'my-patients') {
             alert('Please enter a search term');
             return;
         }
@@ -47,17 +47,32 @@ function SearchPanel({ currentUser }) {
                     break;
             }
 
+            console.log('Fetching from URL:', url);
             const response = await fetch(url);
 
             if (response.ok) {
                 const data = await response.json();
-                setResults(Array.isArray(data) ? data : [data]);
+                console.log('Search results:', data);
+
+                // Handle different response structures
+                if (searchType === 'my-patients' && data.patients) {
+                    // DoctorPatientsResult has a 'patients' array
+                    setResults(data.patients);
+                } else if (Array.isArray(data)) {
+                    // Direct array response for name/condition/encounters
+                    setResults(data);
+                } else {
+                    // Single result or other structure
+                    setResults([data]);
+                }
             } else {
-                alert('Search failed');
+                const errorText = await response.text();
+                console.error('Search failed:', response.status, errorText);
+                alert('Search failed: ' + errorText);
             }
         } catch (error) {
             console.error('Search error:', error);
-            alert('Error performing search');
+            alert('Error performing search: ' + error.message);
         } finally {
             setLoading(false);
         }
@@ -68,15 +83,21 @@ function SearchPanel({ currentUser }) {
         setLoading(true);
 
         try {
+            // Use socialSecurityNumber as the patient identifier
+            const patientId = patient.socialSecurityNumber || patient.id;
+            console.log('Fetching details for patient:', patientId);
+
             const [obsRes, condRes, encRes] = await Promise.all([
-                fetch(`${API_CONFIG.CLINICAL_SERVICE}/api/v1/clinical/observations/patient/${patient.id}`),
-                fetch(`${API_CONFIG.CLINICAL_SERVICE}/api/v1/clinical/conditions/patient/${patient.id}`),
-                fetch(`${API_CONFIG.CLINICAL_SERVICE}/api/v1/clinical/encounters/patient/${patient.id}`)
+                fetch(`${API_CONFIG.CLINICAL_SERVICE}/api/v1/clinical/observations/patient/${patientId}`),
+                fetch(`${API_CONFIG.CLINICAL_SERVICE}/api/v1/clinical/conditions/patient/${patientId}`),
+                fetch(`${API_CONFIG.CLINICAL_SERVICE}/api/v1/clinical/encounters/patient/${patientId}`)
             ]);
 
             const observations = obsRes.ok ? await obsRes.json() : [];
             const conditions = condRes.ok ? await condRes.json() : [];
             const encounters = encRes.ok ? await encRes.json() : [];
+
+            console.log('Patient details loaded:', { observations: observations.length, conditions: conditions.length, encounters: encounters.length });
 
             setSelectedPatient({
                 ...patient,
@@ -86,7 +107,7 @@ function SearchPanel({ currentUser }) {
             });
         } catch (error) {
             console.error('Error fetching patient details:', error);
-            alert('Could not fetch patient details');
+            alert('Could not fetch patient details: ' + error.message);
         } finally {
             setLoading(false);
         }
@@ -341,7 +362,7 @@ function SearchPanel({ currentUser }) {
                             <tbody>
                             {results.map((patient, index) => (
                                 <tr
-                                    key={index}
+                                    key={patient.id || index}
                                     style={styles.row}
                                     onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
                                     onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
@@ -349,7 +370,7 @@ function SearchPanel({ currentUser }) {
                                     <td style={styles.td}>
                                         {patient.firstName} {patient.lastName}
                                     </td>
-                                    <td style={styles.td}>{patient.socialSecurityNumber}</td>
+                                    <td style={styles.td}>{patient.socialSecurityNumber || patient.id}</td>
                                     <td style={styles.td}>{patient.dateOfBirth || 'N/A'}</td>
                                     <td style={styles.td}>
                                         <button
@@ -367,7 +388,7 @@ function SearchPanel({ currentUser }) {
                 </div>
             )}
 
-            {!loading && results.length === 0 && searchQuery && (
+            {!loading && results.length === 0 && (searchQuery || searchType === 'my-patients' || (searchType === 'my-encounters' && selectedDate)) && (
                 <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
                     No results found
                 </div>
@@ -383,7 +404,7 @@ function SearchPanel({ currentUser }) {
 
                         <div style={styles.section}>
                             <h3>Personal Information</h3>
-                            <p><strong>SSN:</strong> {selectedPatient.socialSecurityNumber}</p>
+                            <p><strong>SSN:</strong> {selectedPatient.socialSecurityNumber || selectedPatient.id}</p>
                             <p><strong>Date of Birth:</strong> {selectedPatient.dateOfBirth || 'N/A'}</p>
                         </div>
 
@@ -394,6 +415,11 @@ function SearchPanel({ currentUser }) {
                                     {selectedPatient.observations.slice(0, 5).map((obs, i) => (
                                         <li key={i}>{obs.description}</li>
                                     ))}
+                                    {selectedPatient.observations.length > 5 && (
+                                        <li style={{ color: '#666', fontStyle: 'italic' }}>
+                                            ... and {selectedPatient.observations.length - 5} more
+                                        </li>
+                                    )}
                                 </ul>
                             ) : (
                                 <p>No observations recorded</p>
@@ -407,6 +433,11 @@ function SearchPanel({ currentUser }) {
                                     {selectedPatient.conditions.slice(0, 5).map((cond, i) => (
                                         <li key={i}>{cond.description}</li>
                                     ))}
+                                    {selectedPatient.conditions.length > 5 && (
+                                        <li style={{ color: '#666', fontStyle: 'italic' }}>
+                                            ... and {selectedPatient.conditions.length - 5} more
+                                        </li>
+                                    )}
                                 </ul>
                             ) : (
                                 <p>No conditions recorded</p>
