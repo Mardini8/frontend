@@ -24,6 +24,7 @@ jobs:
       - name: Build React app
         run: npm run build
         env:
+          CI: false
           REACT_APP_USER_SERVICE_URL: https://patientsystem-user.app.cloud.cbh.kth.se
           REACT_APP_MESSAGE_SERVICE_URL: https://patientsystem-message.app.cloud.cbh.kth.se
           REACT_APP_CLINICAL_SERVICE_URL: https://patientsystem-clinical.app.cloud.cbh.kth.se
