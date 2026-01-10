@@ -32,7 +32,6 @@ function MessagingSystem({ currentUser, patientPersonnummer }) {
                             mappings[user.id] = pract.socialSecurityNumber;
                         }
                     } catch (e) {
-                        // Ignore
                     }
                 }
                 console.log('User ID -> Foreign ID mappings:', mappings);

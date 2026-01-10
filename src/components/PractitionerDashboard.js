@@ -23,7 +23,6 @@ function PractitionerDashboard({ user, onLogout }) {
         setLoading(true);
         setError(null);
         try {
-            // Use fetchWithAuth instead of fetch
             const response = await fetchWithAuth(`${API_CONFIG.CLINICAL_SERVICE}/api/patients`);
             if (response.ok) {
                 const data = await response.json();
@@ -229,7 +228,6 @@ function PractitionerDashboard({ user, onLogout }) {
                             onBack={() => setActiveTab('patients')}
                         />
 
-                        {/* Images section - Only for Doctors */}
                         {isDoctor && (
                             <div style={{ marginTop: '30px' }}>
                                 <ImageGallery
@@ -282,7 +280,6 @@ function PatientDetails({ patient, practitionerPersonnummer, isDoctor, onBack })
         try {
             const patientPersonnummer = patient.socialSecurityNumber;
 
-            // Use fetchWithAuth for all API calls
             const [obsRes, condRes, encRes] = await Promise.all([
                 fetchWithAuth(`${API_CONFIG.CLINICAL_SERVICE}/api/v1/clinical/observations/patient/${patientPersonnummer}`),
                 fetchWithAuth(`${API_CONFIG.CLINICAL_SERVICE}/api/v1/clinical/conditions/patient/${patientPersonnummer}`),
@@ -313,7 +310,6 @@ function PatientDetails({ patient, practitionerPersonnummer, isDoctor, onBack })
     const handleAddObservation = async (e) => {
         e.preventDefault();
         try {
-            // Use fetchWithAuth for POST request
             const response = await fetchWithAuth(`${API_CONFIG.CLINICAL_SERVICE}/api/v1/clinical/observations`, {
                 method: 'POST',
                 body: JSON.stringify({
@@ -350,7 +346,6 @@ function PatientDetails({ patient, practitionerPersonnummer, isDoctor, onBack })
     const handleAddCondition = async (e) => {
         e.preventDefault();
         try {
-            // Use fetchWithAuth for POST request
             const response = await fetchWithAuth(`${API_CONFIG.CLINICAL_SERVICE}/api/v1/clinical/conditions`, {
                 method: 'POST',
                 body: JSON.stringify({
@@ -362,7 +357,7 @@ function PatientDetails({ patient, practitionerPersonnummer, isDoctor, onBack })
             });
 
             if (response.ok) {
-                alert('Diagnosis created in HAPI FHIR!');
+                alert('Condition created in HAPI FHIR!');
                 setShowAddCondition(false);
                 setNewCondition({
                     description: '',
@@ -372,18 +367,17 @@ function PatientDetails({ patient, practitionerPersonnummer, isDoctor, onBack })
             } else {
                 const errorText = await response.text();
                 console.error('Error from server:', errorText);
-                alert('Error creating diagnosis: ' + errorText);
+                alert('Error creating condition: ' + errorText);
             }
         } catch (error) {
-            console.error('Error creating diagnosis:', error);
-            alert('Could not create diagnosis: ' + error.message);
+            console.error('Error creating condition:', error);
+            alert('Could not create condition: ' + error.message);
         }
     };
 
     const handleAddEncounter = async (e) => {
         e.preventDefault();
         try {
-            // Use fetchWithAuth for POST request
             const response = await fetchWithAuth(`${API_CONFIG.CLINICAL_SERVICE}/api/v1/clinical/encounters`, {
                 method: 'POST',
                 body: JSON.stringify({
@@ -395,7 +389,7 @@ function PatientDetails({ patient, practitionerPersonnummer, isDoctor, onBack })
             });
 
             if (response.ok) {
-                alert('Visit created in HAPI FHIR!');
+                alert('Encounter created in HAPI FHIR!');
                 setShowAddEncounter(false);
                 setNewEncounter({
                     startTime: new Date().toISOString().slice(0, 16),
@@ -405,11 +399,11 @@ function PatientDetails({ patient, practitionerPersonnummer, isDoctor, onBack })
             } else {
                 const errorText = await response.text();
                 console.error('Error from server:', errorText);
-                alert('Error creating visit: ' + errorText);
+                alert('Error creating encounter: ' + errorText);
             }
         } catch (error) {
-            console.error('Error creating visit:', error);
-            alert('Could not create visit: ' + error.message);
+            console.error('Error creating encounter:', error);
+            alert('Could not create encounter: ' + error.message);
         }
     };
 
@@ -517,7 +511,6 @@ function PatientDetails({ patient, practitionerPersonnummer, isDoctor, onBack })
                     </form>
                 )}
 
-                {/* Doctors see the list, Staff do NOT */}
                 {isDoctor && (
                     <>
                         {observations.length === 0 ? (
@@ -540,21 +533,21 @@ function PatientDetails({ patient, practitionerPersonnummer, isDoctor, onBack })
 
             {/* CONDITIONS */}
             <div style={styles.card}>
-                <h3>Diagnoses</h3>
+                <h3>Conditions</h3>
                 <button style={styles.button} onClick={() => setShowAddCondition(!showAddCondition)}>
-                    {showAddCondition ? 'Cancel' : '+ Add diagnosis'}
+                    {showAddCondition ? 'Cancel' : '+ Add condition'}
                 </button>
 
                 {showAddCondition && (
                     <form onSubmit={handleAddCondition} style={{ marginTop: '20px', padding: '20px', background: '#f9f9f9', borderRadius: '8px' }}>
-                        <h4>New diagnosis</h4>
+                        <h4>New condition</h4>
                         <label>
                             Description:
                             <textarea
                                 style={styles.textarea}
                                 value={newCondition.description}
                                 onChange={(e) => setNewCondition({...newCondition, description: e.target.value})}
-                                placeholder="Describe the diagnosis"
+                                placeholder="Describe the condition"
                                 required
                             />
                         </label>
@@ -568,15 +561,14 @@ function PatientDetails({ patient, practitionerPersonnummer, isDoctor, onBack })
                                 required
                             />
                         </label>
-                        <button type="submit" style={styles.button}>Save diagnosis</button>
+                        <button type="submit" style={styles.button}>Save condition</button>
                     </form>
                 )}
 
-                {/* Doctors see the list, Staff do NOT */}
                 {isDoctor && (
                     <>
                         {conditions.length === 0 ? (
-                            <p>No diagnoses registered</p>
+                            <p>No conditions registered</p>
                         ) : (
                             <ul>
                                 {conditions.map(cond => (
@@ -593,16 +585,16 @@ function PatientDetails({ patient, practitionerPersonnummer, isDoctor, onBack })
                 )}
             </div>
 
-            {/* ENCOUNTERS - Both doctors and staff can see and create */}
+            {/* ENCOUNTERS */}
             <div style={styles.card}>
-                <h3>Visits</h3>
+                <h3>Encounters</h3>
                 <button style={styles.button} onClick={() => setShowAddEncounter(!showAddEncounter)}>
-                    {showAddEncounter ? 'Cancel' : '+ Register visit'}
+                    {showAddEncounter ? 'Cancel' : '+ Register encounter'}
                 </button>
 
                 {showAddEncounter && (
                     <form onSubmit={handleAddEncounter} style={{ marginTop: '20px', padding: '20px', background: '#f9f9f9', borderRadius: '8px' }}>
-                        <h4>New visit</h4>
+                        <h4>New encounter</h4>
                         <label>
                             Start time:
                             <input
@@ -622,18 +614,17 @@ function PatientDetails({ patient, practitionerPersonnummer, isDoctor, onBack })
                                 onChange={(e) => setNewEncounter({...newEncounter, endTime: e.target.value})}
                             />
                         </label>
-                        <button type="submit" style={styles.button}>Save visit</button>
+                        <button type="submit" style={styles.button}>Save encounter</button>
                     </form>
                 )}
 
-                {/* Both doctors and staff see the visit list */}
                 {encounters.length === 0 ? (
-                    <p>No visits registered</p>
+                    <p>No encounters registered</p>
                 ) : (
                     <ul>
                         {encounters.map(enc => (
                             <li key={enc.id} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
-                                Visit: {new Date(enc.startTime).toLocaleString()}
+                                Encounter: {new Date(enc.startTime).toLocaleString()}
                                 {enc.endTime && ` - ${new Date(enc.endTime).toLocaleString()}`}
                             </li>
                         ))}

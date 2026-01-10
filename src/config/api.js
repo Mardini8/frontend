@@ -1,36 +1,22 @@
-// API Configuration for CBH Cloud Production
-// This file should be used for production deployment
-
 import keycloak from './keycloak';
 
 const API_CONFIG = {
-    // User Service - authentication and user management
     USER_SERVICE: process.env.REACT_APP_USER_SERVICE_URL || 'https://patientsystem-user.app.cloud.cbh.kth.se',
 
-    // Message Service - messaging between users
     MESSAGE_SERVICE: process.env.REACT_APP_MESSAGE_SERVICE_URL || 'https://patientsystem-message.app.cloud.cbh.kth.se',
 
-    // Clinical Service - FHIR resources (Patient, Practitioner, etc.)
     CLINICAL_SERVICE: process.env.REACT_APP_CLINICAL_SERVICE_URL || 'https://patientsystem-clinical.app.cloud.cbh.kth.se',
 
-    // Image Service - medical image uploads and management
     IMAGE_SERVICE: process.env.REACT_APP_IMAGE_SERVICE_URL || 'https://patientsystem-image.app.cloud.cbh.kth.se',
 
-    // Search Service - search functionality
     SEARCH_SERVICE: process.env.REACT_APP_SEARCH_SERVICE_URL || 'https://patientsystem-search.app.cloud.cbh.kth.se',
 };
 
-// Helper function to get base URLs
 export const getApiUrl = (service) => {
     return API_CONFIG[service] || '';
 };
 
-/**
- * Fetch with automatic Bearer token injection
- * Use this for all authenticated API calls
- */
 export const fetchWithAuth = async (url, options = {}) => {
-    // Ensure token is fresh
     try {
         await keycloak.updateToken(30);
     } catch (error) {
@@ -44,7 +30,6 @@ export const fetchWithAuth = async (url, options = {}) => {
         ...options.headers,
     };
 
-    // Add Authorization header if authenticated
     if (keycloak.token) {
         headers['Authorization'] = `Bearer ${keycloak.token}`;
     }
@@ -56,14 +41,12 @@ export const fetchWithAuth = async (url, options = {}) => {
         headers,
     });
 
-    // Handle 401 Unauthorized
     if (response.status === 401) {
         console.error('401 Unauthorized - logging out');
         keycloak.logout();
         throw new Error('Unauthorized');
     }
 
-    // Handle 403 Forbidden
     if (response.status === 403) {
         console.error('403 Forbidden - insufficient permissions');
         throw new Error('Access denied - insufficient permissions');
@@ -72,10 +55,6 @@ export const fetchWithAuth = async (url, options = {}) => {
     return response;
 };
 
-/**
- * Fetch for file uploads with automatic Bearer token
- * Does NOT set Content-Type (let browser set it for FormData)
- */
 export const fetchWithAuthFormData = async (url, options = {}) => {
     try {
         await keycloak.updateToken(30);
@@ -106,7 +85,6 @@ export const fetchWithAuthFormData = async (url, options = {}) => {
     return response;
 };
 
-// Endpoint helpers
 export const endpoints = {
     // User Service endpoints
     login: () => `${API_CONFIG.USER_SERVICE}/api/users/login`,

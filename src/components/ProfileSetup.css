@@ -58,7 +58,6 @@
 .role-button {
     display: flex;
     align-items: center;
-    gap: 16px;
     padding: 20px;
     border: 2px solid #e0e0e0;
     border-radius: 12px;
@@ -66,6 +65,7 @@
     cursor: pointer;
     transition: all 0.2s ease;
     text-align: left;
+    width: 100%;
 }
 
 .role-button:hover {
@@ -78,8 +78,10 @@
     background: #f0f3ff;
 }
 
-.role-icon {
-    font-size: 32px;
+.role-button > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .role-title {
@@ -93,7 +95,6 @@
     font-size: 14px;
     color: #666;
     display: block;
-    margin-top: 4px;
 }
 
 /* Search box */

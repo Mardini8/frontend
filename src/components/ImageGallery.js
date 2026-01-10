@@ -8,10 +8,9 @@ function ImageGallery({ currentUser, patientPersonnummer }) {
     const [uploadFile, setUploadFile] = useState(null);
     const [uploadPreview, setUploadPreview] = useState(null);
 
-    // Editor state
     const [showEditor, setShowEditor] = useState(false);
     const [editorImage, setEditorImage] = useState(null);
-    const [tool, setTool] = useState('none'); // 'text', 'pen', 'rectangle', 'circle', 'arrow'
+    const [tool, setTool] = useState('none');
     const [color, setColor] = useState('#FF0000');
     const [text, setText] = useState('');
     const [textPosition, setTextPosition] = useState({ x: 50, y: 50 });
@@ -27,7 +26,6 @@ function ImageGallery({ currentUser, patientPersonnummer }) {
     const fetchImages = useCallback(async () => {
         setLoading(true);
         try {
-            // Use fetchWithAuth instead of fetch
             const response = await fetchWithAuth(
                 `${API_CONFIG.IMAGE_SERVICE}/api/images/patient/${patientPersonnummer}`
             );
@@ -79,7 +77,6 @@ function ImageGallery({ currentUser, patientPersonnummer }) {
         console.log('User ID:', currentUser.id);
 
         try {
-            // Use fetchWithAuthFormData for file uploads
             const response = await fetchWithAuthFormData(`${API_CONFIG.IMAGE_SERVICE}/api/images/upload`, {
                 method: 'POST',
                 body: formData
@@ -109,7 +106,6 @@ function ImageGallery({ currentUser, patientPersonnummer }) {
         setTool('none');
         setText('');
 
-        // Load image on canvas after modal opens
         setTimeout(() => {
             const canvas = canvasRef.current;
             if (canvas) {
@@ -253,7 +249,6 @@ function ImageGallery({ currentUser, patientPersonnummer }) {
             formData.append('description', `Edited version of ${editorImage.filename}`);
 
             try {
-                // Use fetchWithAuthFormData for file uploads
                 const response = await fetchWithAuthFormData(`${API_CONFIG.IMAGE_SERVICE}/api/images/upload`, {
                     method: 'POST',
                     body: formData
@@ -401,7 +396,6 @@ function ImageGallery({ currentUser, patientPersonnummer }) {
                 )}
             </div>
 
-            {/* Upload Section - Only for Doctors */}
             {isDoctor && (
                 <div style={styles.uploadSection}>
                     <h3 style={{ marginBottom: '15px' }}>Upload New Image</h3>
@@ -434,7 +428,6 @@ function ImageGallery({ currentUser, patientPersonnummer }) {
                 </div>
             )}
 
-            {/* Image Gallery */}
             {loading ? (
                 <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
                     Loading images...
@@ -464,7 +457,6 @@ function ImageGallery({ currentUser, patientPersonnummer }) {
                 </div>
             )}
 
-            {/* Image Viewer Modal for Patients */}
             {isPatient && selectedImage && (
                 <div style={styles.modal} onClick={() => setSelectedImage(null)}>
                     <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
@@ -485,13 +477,11 @@ function ImageGallery({ currentUser, patientPersonnummer }) {
                 </div>
             )}
 
-            {/* Image Editor Modal for Doctors */}
             {isDoctor && showEditor && editorImage && (
                 <div style={styles.modal}>
                     <div style={{ ...styles.modalContent, maxWidth: '95vw' }}>
                         <h3 style={{ marginBottom: '15px' }}>Edit Image</h3>
 
-                        {/* Toolbar */}
                         <div style={styles.toolbar}>
                             <button
                                 style={styles.toolButton(tool === 'pen')}
@@ -557,7 +547,6 @@ function ImageGallery({ currentUser, patientPersonnummer }) {
                             )}
                         </div>
 
-                        {/* Canvas */}
                         <canvas
                             ref={canvasRef}
                             style={styles.canvas}
@@ -567,7 +556,6 @@ function ImageGallery({ currentUser, patientPersonnummer }) {
                             onClick={handleCanvasClick}
                         />
 
-                        {/* Action Buttons */}
                         <div style={{ marginTop: '20px', textAlign: 'center' }}>
                             <button style={styles.button} onClick={handleSaveEdited}>
                                 Save Edited Image

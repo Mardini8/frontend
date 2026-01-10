@@ -20,7 +20,6 @@ function PatientDashboard({ user, onLogout }) {
         try {
             console.log('Fetching data for patient with FHIR UUID:', patientId);
 
-            // Use fetchWithAuth instead of fetch
             const allPatientsRes = await fetchWithAuth(`${API_CONFIG.CLINICAL_SERVICE}/api/patients`);
             if (allPatientsRes.ok) {
                 const allPatients = await allPatientsRes.json();
@@ -30,7 +29,6 @@ function PatientDashboard({ user, onLogout }) {
                     setPatientInfo(patient);
                     console.log('Patient fetched from HAPI:', patient);
 
-                    // Use fetchWithAuth for all clinical data
                     const [obsRes, condRes, encRes] = await Promise.all([
                         fetchWithAuth(`${API_CONFIG.CLINICAL_SERVICE}/api/v1/clinical/observations/patient/${patientId}`),
                         fetchWithAuth(`${API_CONFIG.CLINICAL_SERVICE}/api/v1/clinical/conditions/patient/${patientId}`),
@@ -180,13 +178,13 @@ function PatientDashboard({ user, onLogout }) {
                     style={styles.navButton(activeTab === 'conditions')}
                     onClick={() => setActiveTab('conditions')}
                 >
-                    Diagnoses
+                    Conditions
                 </button>
                 <button
                     style={styles.navButton(activeTab === 'encounters')}
                     onClick={() => setActiveTab('encounters')}
                 >
-                    Visits
+                    Encounters
                 </button>
                 <button
                     style={styles.navButton(activeTab === 'messages')}
@@ -269,9 +267,9 @@ function PatientDashboard({ user, onLogout }) {
 
                         {activeTab === 'conditions' && (
                             <div style={styles.card}>
-                                <h2>My Diagnoses</h2>
+                                <h2>My Conditions</h2>
                                 {conditions.length === 0 ? (
-                                    <p>No diagnoses registered</p>
+                                    <p>No conditions registered</p>
                                 ) : (
                                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                         <thead>
@@ -297,9 +295,9 @@ function PatientDashboard({ user, onLogout }) {
 
                         {activeTab === 'encounters' && (
                             <div style={styles.card}>
-                                <h2>My Visits</h2>
+                                <h2>My Encounters</h2>
                                 {encounters.length === 0 ? (
-                                    <p>No visits registered</p>
+                                    <p>No encounters registered</p>
                                 ) : (
                                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                         <thead>

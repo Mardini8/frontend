@@ -34,7 +34,6 @@ export const AuthProvider = ({ children }) => {
 
                     const keycloakId = keycloak.tokenParsed?.sub;
 
-                    // Check if user has completed profile in user-service
                     try {
                         const response = await fetch(
                             `${API_CONFIG.USER_SERVICE}/api/users/keycloak/${keycloakId}`,
@@ -46,7 +45,6 @@ export const AuthProvider = ({ children }) => {
                         );
 
                         if (response.ok) {
-                            // User exists in database - profile is complete
                             const userData = await response.json();
                             console.log('User found in database:', userData);
 
@@ -62,7 +60,6 @@ export const AuthProvider = ({ children }) => {
                             });
                             setNeedsProfileSetup(false);
                         } else if (response.status === 404) {
-                            // User not in database - needs profile setup
                             console.log('User not found in database, needs profile setup');
                             setUser({
                                 id: keycloakId,
@@ -81,7 +78,6 @@ export const AuthProvider = ({ children }) => {
                         }
                     } catch (error) {
                         console.error('Error fetching user profile:', error);
-                        // If we can't reach user-service, assume profile setup needed
                         setUser({
                             id: keycloakId,
                             keycloakId: keycloakId,
@@ -104,7 +100,6 @@ export const AuthProvider = ({ children }) => {
 
         initKeycloak();
 
-        // Token refresh
         const refreshInterval = setInterval(() => {
             if (keycloak.authenticated) {
                 keycloak.updateToken(70)
@@ -134,14 +129,12 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const hasRole = useCallback((role) => {
-        // Check role from user-service data (uppercase)
         const userRole = user?.role?.toUpperCase();
         const checkRole = role?.toUpperCase();
         return userRole === checkRole;
     }, [user]);
 
     const completeProfileSetup = useCallback((role, foreignId) => {
-        // Update local state after profile is saved
         setUser(prev => ({
             ...prev,
             role: role.toUpperCase(),

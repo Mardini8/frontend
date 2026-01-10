@@ -4,7 +4,6 @@ import ProfileSetup from './components/ProfileSetup';
 import PractitionerDashboard from './components/PractitionerDashboard';
 import PatientDashboard from './components/PatientDashboard';
 
-// Loading component
 const LoadingScreen = () => (
     <div style={{
         minHeight: '100vh',
@@ -32,47 +31,39 @@ const LoadingScreen = () => (
     </div>
 );
 
-// Main app content
 const AppContent = () => {
     const { isLoading, isAuthenticated, needsProfileSetup, user, logout, hasRole } = useAuth();
 
-    // Show loading while initializing
     if (isLoading) {
         return <LoadingScreen />;
     }
 
-    // Not authenticated yet - Keycloak will redirect
     if (!isAuthenticated) {
         return <LoadingScreen />;
     }
 
-    // User not loaded yet
     if (!user) {
         return <LoadingScreen />;
     }
 
-    // Show profile setup if user hasn't completed it
     if (needsProfileSetup) {
         return <ProfileSetup />;
     }
 
-    // Convert user to format expected by dashboards
     const dashboardUser = {
         id: user.id,
         username: user.username,
         email: user.email,
-        role: user.role, // Already uppercase from AuthContext
+        role: user.role,
         foreignId: user.foreignId,
     };
 
-    // Route to correct dashboard based on role
     if (hasRole('DOCTOR') || hasRole('STAFF')) {
         return <PractitionerDashboard user={dashboardUser} onLogout={logout} />;
     } else if (hasRole('PATIENT')) {
         return <PatientDashboard user={dashboardUser} onLogout={logout} />;
     }
 
-    // Fallback - should not happen if profile setup worked
     return (
         <div style={{
             minHeight: '100vh',
@@ -106,7 +97,6 @@ const AppContent = () => {
     );
 };
 
-// Root App component with AuthProvider
 function App() {
     return (
         <AuthProvider>

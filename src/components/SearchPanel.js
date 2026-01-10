@@ -10,7 +10,6 @@ function SearchPanel({ currentUser }) {
     const [selectedDate, setSelectedDate] = useState('');
 
     const isDoctor = currentUser.role === 'DOCTOR';
-    const isStaff = currentUser.role === 'STAFF';
 
     const handleSearch = async () => {
         if (!searchQuery.trim() && searchType !== 'my-encounters' && searchType !== 'my-patients') {
@@ -225,7 +224,7 @@ function SearchPanel({ currentUser }) {
                     >
                         Search by Condition
                     </button>
-                    {(isDoctor || isStaff) && (
+                    {isDoctor && (
                         <>
                             <button
                                 style={styles.typeButton(searchType === 'my-patients')}
@@ -277,7 +276,6 @@ function SearchPanel({ currentUser }) {
                 </button>
             </div>
 
-            {/* Results */}
             {loading && (
                 <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
                     Loading results...
@@ -370,7 +368,6 @@ function SearchPanel({ currentUser }) {
                 </div>
             )}
 
-            {/* Patient Details Modal */}
             {selectedPatient && (
                 <div style={styles.modal} onClick={() => setSelectedPatient(null)}>
                     <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>

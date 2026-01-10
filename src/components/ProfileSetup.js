@@ -13,7 +13,6 @@ const ProfileSetup = () => {
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Fetch persons based on selected role
     useEffect(() => {
         const fetchPersons = async () => {
             if (!selectedRole) return;
@@ -26,7 +25,6 @@ const ProfileSetup = () => {
                 if (selectedRole === 'patient') {
                     response = await fetchWithAuth(endpoints.patients());
                 } else {
-                    // Doctor and staff are practitioners
                     response = await fetchWithAuth(endpoints.practitioners());
                 }
 
@@ -35,11 +33,11 @@ const ProfileSetup = () => {
                     console.log('Fetched persons:', data);
                     setPersons(data);
                 } else {
-                    setError('Kunde inte hämta personer från databasen');
+                    setError('Could not fetch persons from database');
                 }
             } catch (err) {
                 console.error('Error fetching persons:', err);
-                setError('Ett fel uppstod vid hämtning av personer');
+                setError('An error occurred while fetching persons');
             } finally {
                 setIsLoading(false);
             }
@@ -63,26 +61,24 @@ const ProfileSetup = () => {
 
     const handleComplete = async () => {
         if (!selectedRole || !selectedPerson) {
-            setError('Välj både roll och person');
+            setError('Please select both role and person');
             return;
         }
 
         setIsLoading(true);
         setError('');
 
-        // Use socialSecurityNumber as foreignId (same as old Register.js)
         const foreignId = selectedPerson.socialSecurityNumber;
         console.log('Saving profile with foreignId:', foreignId);
 
         try {
-            // Save profile to user-service
             const response = await fetchWithAuth(endpoints.setupProfile(), {
                 method: 'POST',
                 body: JSON.stringify({
                     keycloakId: user.keycloakId || user.id,
                     email: user.email,
                     username: user.username,
-                    role: selectedRole.toUpperCase(), // PATIENT, DOCTOR, STAFF
+                    role: selectedRole.toUpperCase(),
                     foreignId: foreignId,
                     firstName: user.firstName || selectedPerson.firstName,
                     lastName: user.lastName || selectedPerson.lastName,
@@ -92,19 +88,18 @@ const ProfileSetup = () => {
             if (response.ok) {
                 const savedUser = await response.json();
                 console.log('Profile saved:', savedUser);
-                // Update auth context - this will trigger re-render and show dashboard
                 completeProfileSetup(selectedRole.toUpperCase(), foreignId);
             } else {
                 const errorData = await response.text();
                 if (errorData.includes('already registered')) {
-                    setError('Denna person har redan ett konto. Välj en annan person.');
+                    setError('This person already has an account. Please select another person.');
                 } else {
-                    setError(errorData || 'Kunde inte spara profilen');
+                    setError(errorData || 'Could not save profile');
                 }
             }
         } catch (err) {
             console.error('Error saving profile:', err);
-            setError('Ett fel uppstod vid sparande av profilen');
+            setError('An error occurred while saving profile');
         } finally {
             setIsLoading(false);
         }
@@ -116,7 +111,6 @@ const ProfileSetup = () => {
         setPersons([]);
     };
 
-    // Filter persons based on search term
     const filteredPersons = persons.filter(person => {
         const fullName = `${person.firstName || ''} ${person.lastName || ''}`.toLowerCase();
         const ssn = person.socialSecurityNumber || '';
@@ -127,42 +121,45 @@ const ProfileSetup = () => {
     return (
         <div className="profile-setup-container">
             <div className="profile-setup-card">
-                <h1>Välkommen, {user?.firstName || user?.username}!</h1>
-                <p className="subtitle">Slutför din profil för att fortsätta</p>
+                <h1>Welcome, {user?.firstName || user?.username}!</h1>
+                <p className="subtitle">Complete your profile to continue</p>
 
                 {error && <div className="error-message">{error}</div>}
 
                 {step === 1 && (
                     <div className="step-content">
-                        <h2>Steg 1: Välj din roll</h2>
-                        <p>Vilken roll har du i systemet?</p>
+                        <h2>Step 1: Select your role</h2>
+                        <p>What is your role in the system?</p>
 
                         <div className="role-options">
                             <button
                                 className={`role-button ${selectedRole === 'doctor' ? 'selected' : ''}`}
                                 onClick={() => handleRoleSelect('doctor')}
                             >
-                                <span className="role-icon">👨‍⚕️</span>
-                                <span className="role-title">Läkare</span>
-                                <span className="role-description">Hantera patienter och journaler</span>
+                                <div>
+                                    <span className="role-title">Doctor</span>
+                                    <span className="role-description">Manage patients and medical records</span>
+                                </div>
                             </button>
 
                             <button
                                 className={`role-button ${selectedRole === 'staff' ? 'selected' : ''}`}
                                 onClick={() => handleRoleSelect('staff')}
                             >
-                                <span className="role-icon">👩‍💼</span>
-                                <span className="role-title">Personal</span>
-                                <span className="role-description">Administrativ åtkomst</span>
+                                <div>
+                                    <span className="role-title">Staff</span>
+                                    <span className="role-description">Administrative access</span>
+                                </div>
                             </button>
 
                             <button
                                 className={`role-button ${selectedRole === 'patient' ? 'selected' : ''}`}
                                 onClick={() => handleRoleSelect('patient')}
                             >
-                                <span className="role-icon">🧑</span>
-                                <span className="role-title">Patient</span>
-                                <span className="role-description">Se mina journaler</span>
+                                <div>
+                                    <span className="role-title">Patient</span>
+                                    <span className="role-description">View my medical records</span>
+                                </div>
                             </button>
                         </div>
                     </div>
@@ -170,28 +167,28 @@ const ProfileSetup = () => {
 
                 {step === 2 && (
                     <div className="step-content">
-                        <h2>Steg 2: Koppla till din profil</h2>
+                        <h2>Step 2: Link to your profile</h2>
                         <p>
                             {selectedRole === 'patient'
-                                ? 'Välj din patientprofil från listan'
-                                : 'Välj din personalprofil från listan'}
+                                ? 'Select your patient profile from the list'
+                                : 'Select your staff profile from the list'}
                         </p>
 
                         <div className="search-box">
                             <input
                                 type="text"
-                                placeholder="Sök på namn eller personnummer..."
+                                placeholder="Search by name or social security number..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
 
                         {isLoading ? (
-                            <div className="loading">Laddar...</div>
+                            <div className="loading">Loading...</div>
                         ) : (
                             <div className="persons-list">
                                 {filteredPersons.length === 0 ? (
-                                    <p className="no-results">Inga personer hittades</p>
+                                    <p className="no-results">No persons found</p>
                                 ) : (
                                     filteredPersons.map((person) => (
                                         <div
@@ -200,14 +197,14 @@ const ProfileSetup = () => {
                                             onClick={() => handlePersonSelect(person)}
                                         >
                                             <div className="person-info">
-                        <span className="person-name">
-                          {person.firstName} {person.lastName}
-                        </span>
+                                                <span className="person-name">
+                                                    {person.firstName} {person.lastName}
+                                                </span>
                                                 <span className="person-id">
-                          {person.socialSecurityNumber
-                              ? `${person.socialSecurityNumber.substring(0, 8)}...`
-                              : 'Inget personnummer'}
-                        </span>
+                                                    {person.socialSecurityNumber
+                                                        ? `${person.socialSecurityNumber.substring(0, 8)}...`
+                                                        : 'No social security number'}
+                                                </span>
                                             </div>
                                             {selectedPerson?.socialSecurityNumber === person.socialSecurityNumber && (
                                                 <span className="checkmark">✓</span>
@@ -220,14 +217,14 @@ const ProfileSetup = () => {
 
                         <div className="button-group">
                             <button className="back-button" onClick={handleBack}>
-                                ← Tillbaka
+                                ← Back
                             </button>
                             <button
                                 className="complete-button"
                                 onClick={handleComplete}
                                 disabled={!selectedPerson || isLoading}
                             >
-                                {isLoading ? 'Sparar...' : 'Slutför registrering'}
+                                {isLoading ? 'Saving...' : 'Complete Setup'}
                             </button>
                         </div>
                     </div>
